@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Java Studio Web IDE &amp; Multi-File Runner</title>
+  <title>Java Web IDE &amp;</title>
   <!-- JSZip para empaquetado Maven y descompresión de archivos .jar / .zip en el navegador -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
@@ -45,15 +45,93 @@
 
     /* Top Bar */
     header {
+      position: relative;
       background: var(--bg-dark);
-      height: 48px;
+      min-height: 78px;
       border-bottom: 1px solid var(--border);
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 14px;
-      gap: 10px;
+      flex-direction: column;
+      align-items: stretch;
+      padding: 4px 14px 6px;
+      gap: 2px;
+      flex-shrink: 0;
       z-index: 20;
+    }
+
+    .header-top-row {
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .menu-bar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .menu-group { position: relative; }
+
+    .menu-trigger {
+      border: 1px solid transparent;
+      background: transparent;
+      color: #d5dced;
+      padding: 4px 9px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .menu-trigger:hover, .menu-group.open .menu-trigger, .menu-trigger:focus-visible {
+      background: var(--selection);
+      border-color: var(--border-focus);
+      outline: none;
+    }
+
+    .menu-dropdown {
+      position: absolute;
+      display: none;
+      top: calc(100% + 5px);
+      left: 0;
+      min-width: 220px;
+      padding: 5px;
+      background: #111e32;
+      border: 1px solid var(--border-focus);
+      border-radius: 6px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, .4);
+      z-index: 50;
+    }
+
+    .menu-group.open .menu-dropdown { display: block; }
+
+    .menu-item {
+      width: 100%;
+      justify-content: space-between;
+      border: 0;
+      background: transparent;
+      padding: 7px 9px;
+      border-radius: 4px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .menu-item:hover, .menu-item:focus-visible {
+      background: var(--selection);
+      outline: none;
+    }
+
+    .menu-shortcut {
+      margin-left: 20px;
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .menu-divider {
+      height: 1px;
+      margin: 4px 5px;
+      background: var(--border);
     }
 
     .brand {
@@ -77,10 +155,16 @@
     }
 
     .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      overflow-x: auto;
+      display: none;
+    }
+
+    @media (max-width: 760px) {
+      header { padding-left: 8px; padding-right: 8px; }
+      .header-top-row { gap: 8px; }
+      .brand { font-size: 12px; gap: 5px; }
+      .brand .badge { display: none; }
+      .menu-trigger { padding: 4px 6px; }
+      .header-actions button { padding: 5px 8px; }
     }
 
     button {
@@ -582,10 +666,61 @@
 
   <!-- Encabezado Principal -->
   <header>
-    <div class="brand">
-      <span style="font-size: 18px;">☕</span>
-      <span>Java Studio IDE</span>
-      <span class="badge">Multi-File Engine</span>
+    <div class="header-top-row">
+      <div class="brand">
+        <span style="font-size: 18px;">☕</span>
+        <span>Java web IDE</span>
+      </div>
+
+      <nav class="menu-bar" aria-label="Menú principal">
+        <div class="menu-group">
+          <button type="button" class="menu-trigger" aria-haspopup="true" aria-expanded="false">Archivo</button>
+          <div class="menu-dropdown">
+            <button type="button" class="menu-item" data-menu-action="new-project"><span>Nuevo proyecto</span><span class="menu-shortcut">Ctrl+N</span></button>
+            <button type="button" class="menu-item" data-menu-action="new-file"><span>Nuevo archivo Java</span><span class="menu-shortcut">Ctrl+Shift+N</span></button>
+            <div class="menu-divider"></div>
+            <button type="button" class="menu-item" data-menu-action="import-java"><span>Importar archivos .java</span></button>
+            <button type="button" class="menu-item" data-menu-action="import-artifact"><span>Importar .jar / .zip</span></button>
+            <div class="menu-divider"></div>
+            <button type="button" class="menu-item" data-menu-action="download-zip"><span>Descargar proyecto Maven</span></button>
+          </div>
+        </div>
+        <div class="menu-group">
+          <button type="button" class="menu-trigger" aria-haspopup="true" aria-expanded="false">Editar</button>
+          <div class="menu-dropdown">
+            <button type="button" class="menu-item" data-menu-action="undo"><span>Deshacer</span><span class="menu-shortcut">Ctrl+Z</span></button>
+            <button type="button" class="menu-item" data-menu-action="redo"><span>Rehacer</span><span class="menu-shortcut">Ctrl+Y</span></button>
+            <div class="menu-divider"></div>
+            <button type="button" class="menu-item" data-menu-action="cut"><span>Cortar</span><span class="menu-shortcut">Ctrl+X</span></button>
+            <button type="button" class="menu-item" data-menu-action="copy"><span>Copiar</span><span class="menu-shortcut">Ctrl+C</span></button>
+            <button type="button" class="menu-item" data-menu-action="paste"><span>Pegar</span><span class="menu-shortcut">Ctrl+V</span></button>
+            <button type="button" class="menu-item" data-menu-action="select-all"><span>Seleccionar todo</span><span class="menu-shortcut">Ctrl+A</span></button>
+          </div>
+        </div>
+        <div class="menu-group">
+          <button type="button" class="menu-trigger" aria-haspopup="true" aria-expanded="false">Selección</button>
+          <div class="menu-dropdown">
+            <button type="button" class="menu-item" data-menu-action="select-all"><span>Seleccionar todo el código</span><span class="menu-shortcut">Ctrl+A</span></button>
+          </div>
+        </div>
+        <div class="menu-group">
+          <button type="button" class="menu-trigger" aria-haspopup="true" aria-expanded="false">Ver</button>
+          <div class="menu-dropdown">
+            <button type="button" class="menu-item" data-menu-action="view-terminal"><span>Consola de ejecución</span></button>
+            <button type="button" class="menu-item" data-menu-action="view-ast"><span>AST y registro de clases</span></button>
+            <div class="menu-divider"></div>
+            <button type="button" class="menu-item" data-menu-action="clear-console"><span>Limpiar consola</span></button>
+          </div>
+        </div>
+        <div class="menu-group">
+          <button type="button" class="menu-trigger" aria-haspopup="true" aria-expanded="false">Ejecutar</button>
+          <div class="menu-dropdown">
+            <button type="button" class="menu-item" data-menu-action="run"><span>Ejecutar proyecto</span><span class="menu-shortcut">Ctrl+Enter</span></button>
+            <button type="button" class="menu-item" data-menu-action="verify"><span>Validar contratos</span></button>
+            <button type="button" class="menu-item" data-menu-action="stop"><span>Detener ejecución</span></button>
+          </div>
+        </div>
+      </nav>
     </div>
 
     <div class="header-actions">
@@ -608,10 +743,6 @@
 
       <button id="btn-trigger-import-artifact" class="btn-import" title="Importar artefacto .jar o .zip">
         <span>📦 Importar .jar</span>
-      </button>
-
-      <button id="btn-package-jar" title="Simular construcción y empaquetado del artefacto .jar">
-        <span>⚙ mvn package</span>
       </button>
 
       <button id="btn-download-zip" class="btn-download" title="Descargar estructura de proyecto Maven completa en ZIP">
@@ -1013,10 +1144,47 @@
         while (this.pos < this.src.length) {
           const char = this.src[this.pos];
 
+          if (char === '@') {
+            this.pos++;
+            this.col++;
+            while (this.pos < this.src.length && /[a-zA-Z0-9_.$]/.test(this.src[this.pos])) {
+              this.pos++;
+              this.col++;
+            }
+            if (this.src[this.pos] === '(') {
+              let depth = 0;
+              do {
+                if (this.src[this.pos] === '(') depth++;
+                else if (this.src[this.pos] === ')') depth--;
+                if (this.src[this.pos] === '\n') { this.line++; this.col = 1; }
+                else this.col++;
+                this.pos++;
+              } while (this.pos < this.src.length && depth > 0);
+            }
+            continue;
+          }
+
           if (char === '\n') {
             this.line++;
             this.col = 1;
             this.pos++;
+            continue;
+          }
+          if ((char === 'r' || char === 'R') && this.src[this.pos + 1] === '"') {
+            const startCol = this.col;
+            this.pos += 2;
+            this.col += 2;
+            const delimiter = this.src.startsWith('"""', this.pos) ? '"""' : '"';
+            if (delimiter === '"""') { this.pos += 3; this.col += 3; }
+            let value = '';
+            while (this.pos < this.src.length && !this.src.startsWith(delimiter, this.pos)) {
+              value += this.src[this.pos];
+              if (this.src[this.pos] === '\n') { this.line++; this.col = 1; } else this.col++;
+              this.pos++;
+            }
+            this.pos += delimiter.length;
+            this.col += delimiter.length;
+            this.tokens.push(new Token(TOKEN_TYPES.STRING, { __colorHex: value }, this.line, startCol, this.filename));
             continue;
           }
           if (/\s/.test(char)) {
@@ -1090,6 +1258,7 @@
               this.pos++;
               this.col++;
             }
+            if (/[fFdDlL]/.test(this.src[this.pos] || '')) { this.pos++; this.col++; }
             const numVal = numStr.includes('.') ? parseFloat(numStr) : parseInt(numStr, 10);
             this.tokens.push(new Token(TOKEN_TYPES.NUMBER, numVal, this.line, startCol, this.filename));
             continue;
@@ -1114,6 +1283,12 @@
 
           // Operadores de asignación compuesta (+=, -=, *=, /=, %=)
           const two = this.src.substr(this.pos, 2);
+          if (two === '->') {
+            this.tokens.push(new Token(TOKEN_TYPES.OPERATOR, two, this.line, this.col, this.filename));
+            this.pos += 2;
+            this.col += 2;
+            continue;
+          }
           if (['+=', '-=', '*=', '/=', '%='].includes(two)) {
             this.tokens.push(new Token(TOKEN_TYPES.ASSIGN_OP, two, this.line, this.col, this.filename));
             this.pos += 2;
@@ -1300,11 +1475,12 @@
         let isStatic = false;
         let access = 'public';
 
-        while (['public', 'private', 'protected', 'static', 'final'].includes(this.peek().value)) {
+        while (['public', 'private', 'protected', 'static', 'final', 'abstract', 'synchronized', 'native', 'strictfp', 'transient', 'volatile'].includes(this.peek().value)) {
           if (this.peek().value === 'static') isStatic = true;
-          else if (this.peek().value !== 'final') access = this.peek().value;
+          else if (['public', 'private', 'protected'].includes(this.peek().value)) access = this.peek().value;
           this.pos++;
         }
+        if (this.peek().value === 'static' && this.peek(1).value === 'final') { isStatic = true; this.pos += 2; }
 
         // Constructor
         if (this.peek().value === currentClassName && this.peek(1).value === '(') {
@@ -1317,6 +1493,15 @@
           return { type: 'Constructor', name: currentClassName, params, body, access };
         }
 
+        if (this.match(TOKEN_TYPES.KEYWORD, 'static') && this.match(TOKEN_TYPES.KEYWORD, 'final')) {
+          this.parseType();
+          this.expect(TOKEN_TYPES.IDENTIFIER);
+          this.expect(TOKEN_TYPES.ASSIGN_OP, '=');
+          this.parseExpression();
+          this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+          return { type: 'FieldDeclaration', name: 'serialVersionUID', fieldType: 'long', initializer: { type: 'Literal', value: 1 }, isStatic: true, access: 'private' };
+        }
+
         const memberType = this.parseType();
         const memberName = this.expect(TOKEN_TYPES.IDENTIFIER).value;
 
@@ -1325,6 +1510,9 @@
           const params = this.parseParameters();
           this.expect(TOKEN_TYPES.PUNCTUATION, ')');
           this.parseThrowsClause();
+          if (this.match(TOKEN_TYPES.PUNCTUATION, ';')) {
+            return { type: 'MethodDeclaration', name: memberName, returnType: memberType, params, body: { type: 'BlockStatement', body: [] }, isStatic, access };
+          }
           const body = this.parseBlock();
           return { type: 'MethodDeclaration', name: memberName, returnType: memberType, params, body, isStatic, access };
         }
@@ -1644,6 +1832,10 @@
         if (this.match(TOKEN_TYPES.OPERATOR, '--')) {
           return { type: 'UpdateExpression', operator: '--', argument: this.parseUnary(), prefix: true };
         }
+        if (this.peek().value === '(' && this.peek(1).type === TOKEN_TYPES.IDENTIFIER && this.peek(2).value === ')' && this.peek(3).type === TOKEN_TYPES.IDENTIFIER) {
+          this.pos += 3;
+          return { type: 'CastExpression', argument: this.parseUnary() };
+        }
         return this.parsePostfix();
       }
 
@@ -1707,6 +1899,15 @@
         if (this.match(TOKEN_TYPES.KEYWORD, 'this')) {
           return { type: 'ThisExpression' };
         }
+        if (this.match(TOKEN_TYPES.KEYWORD, 'super')) {
+          return { type: 'SuperExpression' };
+        }
+
+        if (this.peek().value === '(' && this.peek(1).value === ')' && this.peek(2).value === '->') {
+          this.pos += 3;
+          const body = this.peek().value === '{' ? this.parseBlock() : this.parseExpression();
+          return { type: 'LambdaExpression', body };
+        }
 
         if (this.match(TOKEN_TYPES.KEYWORD, 'new')) {
           const typeParts = [this.peek().value];
@@ -1739,7 +1940,12 @@
           this.expect(TOKEN_TYPES.PUNCTUATION, '(');
           const args = this.parseArguments();
           this.expect(TOKEN_TYPES.PUNCTUATION, ')');
-          return { type: 'NewExpression', callee: typeName, arguments: args };
+          let anonymousBody = null;
+          if (this.match(TOKEN_TYPES.PUNCTUATION, '{')) {
+            anonymousBody = [];
+            while (!this.match(TOKEN_TYPES.PUNCTUATION, '}')) anonymousBody.push(this.parseClassMember(typeName));
+          }
+          return { type: 'NewExpression', callee: typeName, arguments: args, anonymousBody };
         }
 
         if (this.match(TOKEN_TYPES.OPERATOR, '<')) {
@@ -1823,6 +2029,7 @@
         this.classes = new Map();
         this.interfaces = new Map();
         this.imports = new Set();
+        this.windows = [];
         this.globalEnv = new Environment();
         this.setupStandardLibrary();
       }
@@ -1943,9 +2150,141 @@
           };
         }};
         const collectionValues = collection => Array.isArray(collection) ? collection : collection.toArray();
+        const colorClass = { type: 'LibraryClass', name: 'Color', create: values => {
+          if (values.length === 1 && values[0] && values[0].__colorHex !== undefined) {
+            const hex = values[0].__colorHex.replace(/^#/, '');
+            if (/^[0-9a-f]{6}([0-9a-f]{2})?$/i.test(hex)) values = [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16), hex.length === 8 ? parseInt(hex.slice(6, 8), 16) : 255];
+          }
+          if (values.length === 1 && typeof values[0] === 'string') {
+            const hex = values[0].replace(/^#/, '');
+            if (/^[0-9a-f]{6}([0-9a-f]{2})?$/i.test(hex)) values = [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16), hex.length === 8 ? parseInt(hex.slice(6, 8), 16) : 255];
+          }
+          const [red, green, blue, alpha = 255] = values;
+          if ([red, green, blue, alpha].some(component => !Number.isInteger(component) || component < 0 || component > 255)) throw new Error('Color requiere canales enteros entre 0 y 255.');
+          return { type: 'Color', red, green, blue, alpha };
+        }};
+        colorClass.decode = value => colorClass.create([value]);
+        for (const [name, rgb] of Object.entries({ BLACK: [0, 0, 0], BLUE: [0, 0, 255], CYAN: [0, 255, 255], DARK_GRAY: [64, 64, 64], GRAY: [128, 128, 128], GREEN: [0, 255, 0], LIGHT_GRAY: [192, 192, 192], MAGENTA: [255, 0, 255], ORANGE: [255, 200, 0], PINK: [255, 175, 175], RED: [255, 0, 0], WHITE: [255, 255, 255], YELLOW: [255, 255, 0] })) colorClass[name] = colorClass.create(rgb);
+        colorClass.decode = value => ({
+          type: 'Color',
+          red: Number.parseInt(value.slice(1, 3), 16),
+          green: Number.parseInt(value.slice(3, 5), 16),
+          blue: Number.parseInt(value.slice(5, 7), 16),
+          alpha: value.length > 7 ? Number.parseInt(value.slice(7, 9), 16) : 255
+        });
+        const dimensionClass = { type: 'LibraryClass', name: 'Dimension', create: values => ({ width: values[0], height: values[1] }) };
+        const graphicsClass = { type: 'LibraryClass', name: 'Graphics', create: () => ({}) };
+        const graphics2DClass = { type: 'LibraryClass', name: 'Graphics2D', create: () => ({}) };
+        const fontClass = { type: 'LibraryClass', name: 'Font', PLAIN: 0, BOLD: 1, ITALIC: 2, create: values => ({ name: String(values[0] || 'Dialog'), style: values[1] ?? 0, size: values[2] ?? 12 }) };
+        const tooltipClass = { type: 'LibraryClass', name: 'JToolTip', create: () => ({
+          background: null, font: null, text: '',
+          setBackground(color) { this.background = color; },
+          setFont(font) { this.font = font; },
+          setTipText(text) { this.text = String(text); }
+        }) };
+        const buttonClass = { type: 'LibraryClass', name: 'JButton', create: (values, anonymousBody = null, capturedEnv = null) => {
+          const button = {
+            type: 'SwingButton', text: String(values[0] ?? ''), bounds: null, tooltipText: '', tooltip: null,
+            setBounds(x, y, width, height) { this.bounds = { x, y, width, height }; },
+            setToolTipText(text) {
+              this.tooltipText = text === null ? '' : String(text);
+              if (this.tooltipText && anonymousBody) {
+                const override = anonymousBody.find(member => member.type === 'MethodDeclaration' && member.name === 'createToolTip');
+                if (override) {
+                  const methodEnv = new Environment(capturedEnv);
+                  methodEnv.define('this', this);
+                  methodEnv.define('super', { createToolTip: () => tooltipClass.create([]) });
+                  this.tooltip = this.__interpreter.executeBlock(override.body, methodEnv);
+                  if (this.tooltip) this.tooltip.setTipText(this.tooltipText);
+                }
+              }
+              if (this.ownerFrame?.visible) this.ownerFrame.render();
+            },
+            createToolTip() { return tooltipClass.create([]); },
+            __interpreter: this
+          };
+          return button;
+        }};
+        const draw2DClass = { type: 'LibraryClass', name: 'RenderingHints', KEY_ANTIALIASING: 'KEY_ANTIALIASING', VALUE_ANTIALIAS_ON: 'VALUE_ANTIALIAS_ON', create: () => ({
+          KEY_ANTIALIASING: 'KEY_ANTIALIASING', VALUE_ANTIALIAS_ON: 'VALUE_ANTIALIAS_ON'
+        }) };
+        const panelClass = { type: 'LibraryClass', name: 'JPanel', create: () => ({
+          type: 'SwingPanel', preferredSize: { width: 300, height: 200 }, background: null, clazz: null,
+          setPreferredSize(size) { this.preferredSize = size; },
+          setBackground(color) { this.background = color; },
+          paintComponent() {}
+        }) };
+        const frameClass = { type: 'LibraryClass', name: 'JFrame', EXIT_ON_CLOSE: 3, create: args => {
+          const frame = {
+            type: 'SwingFrame', title: args.length ? String(args[0]) : '', contentPane: null, resizable: true, components: [], __interpreter: this,
+            setDefaultCloseOperation: () => {},
+            setTitle(value) { this.title = String(value); },
+            setLayout(layout) { this.layout = layout; },
+            setContentPane(panel) { this.contentPane = panel; },
+            add(component) {
+              if (component && component.type === 'SwingButton') {
+                component.__interpreter = this.__interpreter;
+                component.ownerFrame = frame;
+              }
+              this.components.push(component);
+              return component;
+            },
+            setSize(width, height) { this.size = typeof width === 'object' ? width : { width, height }; },
+            pack() { if (this.contentPane) this.size = this.contentPane.preferredSize; },
+            setLocationRelativeTo: () => {},
+            setResizable(value) { this.resizable = value; },
+            setVisible(value) {
+              this.visible = Boolean(value);
+              if (this.visible) this.render();
+            }
+          };
+          frame.render = () => {
+            const panel = frame.contentPane;
+            const commands = [];
+            if (panel) {
+              const defaultBackground = { red: 238, green: 238, blue: 238, alpha: 255 };
+              const graphics = {
+                type: 'Graphics2D', color: panel.background || defaultBackground,
+                setColor(color) { this.color = color; }, setRenderingHint: () => {},
+                fillRoundRect(...args) { commands.push({ shape: 'roundRect', args, color: this.color, fill: true }); },
+                fillOval(...args) { commands.push({ shape: 'oval', args, color: this.color, fill: true }); },
+                fillRect(...args) { commands.push({ shape: 'rect', args, color: this.color, fill: true }); },
+                fillPolygon(xs, ys, count) { commands.push({ shape: 'polygon', xs, ys, count, color: this.color, fill: true }); },
+                fillArc(...args) { commands.push({ shape: 'arc', args, color: this.color, fill: true }); },
+                drawRect(...args) { commands.push({ shape: 'rect', args, color: this.color, fill: false }); }
+              };
+              const method = panel.clazz && panel.clazz.body.find(member => member.type === 'MethodDeclaration' && member.name === 'paintComponent');
+              if (method) {
+                const paintEnv = new Environment(frame.__interpreter.globalEnv);
+                paintEnv.define('this', panel);
+                paintEnv.define(method.params[0] ? method.params[0].name : 'g', graphics);
+                frame.__interpreter.executeBlock(method.body, paintEnv);
+              }
+            }
+            frame.__interpreter.logger.window({
+              title: frame.title, width: frame.size?.width || panel?.preferredSize.width || 300,
+              height: frame.size?.height || panel?.preferredSize.height || 200,
+              background: panel?.background, commands,
+              components: frame.components.map(component => ({ text: component.text, bounds: component.bounds, tooltipText: component.tooltipText, tooltip: component.tooltip && { background: component.tooltip.background, font: component.tooltip.font && { name: component.tooltip.font.name, style: component.tooltip.font.style, size: component.tooltip.font.size }, text: component.tooltip.text } }))
+            });
+          };
+          return frame;
+        }};
         const util = {
           ArrayList: arrayListClass,
           LinkedList: linkedListClass,
+          Color: colorClass,
+          Dimension: dimensionClass,
+          Graphics: graphicsClass,
+          Graphics2D: graphics2DClass,
+          RenderingHints: draw2DClass,
+          Font: fontClass,
+          JButton: buttonClass,
+          JToolTip: tooltipClass,
+          JPanel: panelClass,
+          JFrame: frameClass,
+          SwingUtilities: { invokeLater: action => action() },
+          Component: { type: 'LibraryClass', name: 'Component', create: () => ({}) },
           StringBuilder: stringBuilderClass,
           Scanner: scannerClass,
           HashSet: hashSetClass,
@@ -1961,6 +2300,11 @@
             fill: (items, value) => items.fill(value),
             copyOf: (items, size) => items.slice(0, size).concat(new Array(Math.max(0, size - items.length)).fill(null))
           },
+          Color: colorClass,
+          Dimension: dimensionClass,
+          Graphics: graphicsClass,
+          Graphics2D: graphics2DClass,
+          RenderingHints: draw2DClass,
           Collections: {
             sort: (items, comparator) => {
               const values = collectionValues(items);
@@ -1993,7 +2337,10 @@
             toString: (value, fallback = 'null') => value === null || value === undefined ? fallback : String(value)
           }
         };
-        this.globalEnv.define('java', { util });
+        const awt = { Color: colorClass, Dimension: dimensionClass, Font: fontClass, Graphics: graphicsClass, Graphics2D: graphics2DClass, RenderingHints: draw2DClass };
+        const swing = { JFrame: frameClass, JPanel: panelClass, JButton: buttonClass, JToolTip: tooltipClass, SwingUtilities: { invokeLater: action => action() } };
+        this.globalEnv.define('java', { util, awt });
+        this.globalEnv.define('javax', { swing });
         this.globalEnv.define('Thread', {
           sleep: () => {}
         });
@@ -2009,6 +2356,8 @@
           }
         });
 
+        this.globalEnv.define('javax', this.globalEnv.get('javax'));
+        this.globalEnv.define('java', this.globalEnv.get('java'));
         this.globalEnv.define('Integer', {
           MAX_VALUE: 2147483647,
           MIN_VALUE: -2147483648,
@@ -2057,14 +2406,22 @@
         for (const fileAst of fileAstList) {
           for (const imported of fileAst.imports) {
             this.imports.add(imported);
-            if (imported.startsWith('java.util.')) {
-              const importedName = imported.slice('java.util.'.length);
+            const libraryPackages = {
+              'java.util.': this.globalEnv.get('java').util,
+              'java.awt.': this.globalEnv.get('java').awt,
+              'javax.swing.': this.globalEnv.get('javax').swing
+            };
+            const packagePrefix = Object.keys(libraryPackages).find(prefix => imported.startsWith(prefix));
+            if (packagePrefix) {
+              const packageLibraries = libraryPackages[packagePrefix];
+              const importedName = imported.slice(packagePrefix.length);
               if (importedName === '*') {
-                for (const [name, value] of Object.entries(this.globalEnv.get('java').util)) this.globalEnv.define(name, value);
-              } else {
-                const value = this.globalEnv.get('java').util[importedName];
-                if (value) this.globalEnv.define(importedName, value);
+                for (const [name, value] of Object.entries(packageLibraries)) this.globalEnv.define(name, value);
+              } else if (packageLibraries[importedName]) {
+                this.globalEnv.define(importedName, packageLibraries[importedName]);
               }
+            } else if (imported === 'java.awt.*') {
+              for (const [name, value] of Object.entries(this.globalEnv.get('java').awt)) this.globalEnv.define(name, value);
             }
           }
           for (const node of fileAst.body) {
@@ -2255,6 +2612,18 @@
           case 'ThisExpression':
             return env.get('this');
 
+          case 'SuperExpression':
+            try { return env.get('super'); } catch (error) { return { paintComponent: () => {} }; }
+
+          case 'LambdaExpression':
+            return action => {
+              if (expr.body.type === 'BlockStatement') return this.executeBlock(expr.body, new Environment(env));
+              return this.evaluateExpression(expr.body, env);
+            };
+
+          case 'CastExpression':
+            return this.evaluateExpression(expr.argument, env);
+
           case 'ArrayLiteral':
             return expr.elements.map(el => this.evaluateExpression(el, env));
 
@@ -2276,6 +2645,16 @@
 
           case 'NewExpression': {
             const typeName = expr.callee.includes('.') ? expr.callee.split('.').pop() : expr.callee;
+            const evaluatedArguments = expr.arguments.map(argument => this.evaluateExpression(argument, env));
+            if (expr.anonymousBody) {
+              const packageLibraries = [env.get('javax').swing, env.get('java').awt];
+              const baseClass = packageLibraries.flatMap(library => Object.values(library)).find(library => library && library.name === typeName && library.type === 'LibraryClass');
+              if (!baseClass) throw new Error(`No se puede instanciar clase anónima de '${typeName}'`);
+              const instance = baseClass.create(evaluatedArguments, expr.anonymousBody, env);
+              instance.__interpreter = this;
+              return instance;
+            }
+            if (typeName === 'Color' && expr.callee === 'Color.RED') return colorClass.RED;
             const javaExceptionTypes = new Set([
               'RuntimeException', 'IllegalArgumentException', 'IllegalStateException',
               'UnsupportedOperationException', 'NullPointerException', 'ArithmeticException',
@@ -2292,13 +2671,18 @@
             const utilPackage = env.get('java').util;
             const libraryClass = utilPackage[typeName];
             if (libraryClass && libraryClass.type === 'LibraryClass') {
-              return libraryClass.create(expr.arguments.map(a => this.evaluateExpression(a, env)));
+              return libraryClass.create(evaluatedArguments);
             }
+            const swingLibrary = env.get('javax').swing[typeName] || env.get('java').awt[typeName];
+            if (swingLibrary && swingLibrary.type === 'LibraryClass') return swingLibrary.create(evaluatedArguments);
             const clazz = this.classes.get(typeName);
             if (!clazz) throw new Error(`No se puede instanciar clase desconocida '${expr.callee}'`);
 
             const instance = new JavaObjectInstance(clazz);
-            const evaluatedArgs = expr.arguments.map(a => this.evaluateExpression(a, env));
+            const libraryInstance = typeName === 'JPanel' ? libraryClass.create() : null;
+            if (libraryInstance) Object.assign(instance, libraryInstance);
+            else if (clazz.superClass === 'JPanel') Object.assign(instance, utilPackage.JPanel.create());
+            const evaluatedArgs = evaluatedArguments;
 
             // Inicializar campos de instancia
             for (const member of clazz.body) {
@@ -2309,6 +2693,8 @@
             }
 
             // Constructor
+            if (typeName === 'JPanel' || clazz.superClass === 'JPanel') instance.clazz = clazz;
+
             const ctor = clazz.body.find(m => m.type === 'Constructor');
             if (ctor) {
               const ctorEnv = new Environment(this.globalEnv);
@@ -2327,16 +2713,27 @@
           }
 
           case 'MemberExpression': {
+            if (expr.object.type === 'Identifier' && expr.object.name === 'javax') return this.globalEnv.get('javax');
+            if (expr.object.type === 'Identifier' && expr.object.name === 'java') {
+              const packageName = expr.property;
+              if (packageName === 'awt') return env.get('java').awt;
+              if (packageName === 'util') return env.get('java').util;
+              if (packageName === 'swing') return env.get('javax').swing;
+            }
+            if (expr.object.type === 'Identifier' && expr.object.name === 'javax' && expr.property === 'swing') return env.get('javax').swing;
             const obj = this.evaluateExpression(expr.object, env);
             if (obj === null || obj === undefined) {
               throw new Error(`NullPointerException: Se intentó acceder a '${expr.property}' en un valor null.`);
             }
 
+            if (obj instanceof JavaObjectInstance && obj.fields.has(expr.property)) return obj.fields.get(expr.property);
+            if (obj.type === 'Color' && expr.property in obj) return obj[expr.property];
             if (Array.isArray(obj) && expr.property === 'length') return obj.length;
             if (typeof obj === 'string' && expr.property === 'length') return obj.length;
 
             if (obj instanceof JavaObjectInstance) {
               if (obj.fields.has(expr.property)) return obj.fields.get(expr.property);
+              if (expr.property === 'clazz' && obj.clazz && (obj.clazz.superClass === 'JPanel' || obj.clazz.name === 'JPanel')) return obj.clazz;
             }
 
             if (obj.type === 'ClassDeclaration') {
@@ -2353,6 +2750,17 @@
             const evaluatedArgs = expr.arguments.map(a => this.evaluateExpression(a, env));
 
             if (expr.callee.type === 'MemberExpression') {
+              if (expr.callee.object.type === 'SuperExpression') {
+                if (expr.callee.property === 'paintComponent') return undefined;
+              }
+              if (expr.callee.object.type === 'Identifier' && expr.callee.object.name === 'javax') {
+                const packageName = expr.callee.property;
+                if (packageName === 'swing') return env.get('javax').swing;
+              }
+              if (expr.callee.object.type === 'Identifier' && expr.callee.object.name === 'java') {
+                const packageName = expr.callee.property;
+                if (packageName === 'awt') return env.get('java').awt;
+              }
               const targetObj = this.evaluateExpression(expr.callee.object, env);
               const methodName = expr.callee.property;
 
@@ -2396,6 +2804,18 @@
 
             if (expr.callee.type === 'Identifier') {
               const fnName = expr.callee.name;
+              let currentInstance = null;
+              try { currentInstance = env.get('this'); } catch (error) {}
+              if (currentInstance instanceof JavaObjectInstance) {
+                const instanceMethod = currentInstance.clazz.body.find(method => method.type === 'MethodDeclaration' && method.name === fnName && !method.isStatic);
+                if (instanceMethod) {
+                  const methodEnv = new Environment(this.globalEnv);
+                  methodEnv.define('this', currentInstance);
+                  instanceMethod.params.forEach((param, i) => methodEnv.define(param.name, evaluatedArgs[i]));
+                  return this.executeBlock(instanceMethod.body, methodEnv);
+                }
+                if (typeof currentInstance[fnName] === 'function') return currentInstance[fnName](...evaluatedArgs);
+              }
               for (const [cName, cl] of this.classes.entries()) {
                 const m = cl.body.find(x => x.name === fnName && x.isStatic);
                 if (m) {
@@ -2568,6 +2988,78 @@
         terminalView.appendChild(row);
         terminalView.scrollTop = terminalView.scrollHeight;
       },
+      window: (details) => {
+        pendingInline = false;
+        if (details.components?.length) {
+          const componentSummary = details.components.map(component => {
+            const tooltip = component.tooltip;
+            return `<div style="margin-top:10px;border:1px solid #d1d5db;border-radius:6px;padding:10px;min-height:30px;position:relative;">
+              <button type="button" style="position:absolute;left:${component.bounds?.x || 0}px;top:${component.bounds?.y || 0}px;width:${component.bounds?.width || 100}px;height:${component.bounds?.height || 30}px;">${escapeHtml(component.text)}</button>
+              ${tooltip ? `<div style="position:absolute;left:${(component.bounds?.x || 0) + 4}px;top:${(component.bounds?.y || 0) + (component.bounds?.height || 30) + 4}px;background:rgba(${tooltip.background.red},${tooltip.background.green},${tooltip.background.blue},${(tooltip.background.alpha ?? 255) / 255});font-family:${escapeHtml(tooltip.font?.name || 'Dialog')};font-size:${tooltip.font?.size || 12}px;font-style:${tooltip.font?.style === 2 ? 'italic' : 'normal'};padding:5px 8px;border:1px solid #888;border-radius:4px;">${escapeHtml(tooltip.text)}</div>` : ''}
+            </div>`;
+          }).join('');
+          const summary = document.createElement('div');
+          summary.className = 'console-line';
+          summary.innerHTML = `<div style="margin:8px 0;padding:12px;background:#fff;border-radius:6px;color:#18212f;font-family:Segoe UI,sans-serif;"><strong>${escapeHtml(details.title)} (${details.width} × ${details.height})</strong>${componentSummary}</div>`;
+          terminalView.appendChild(summary);
+          terminalView.scrollTop = terminalView.scrollHeight;
+          return;
+        }
+        details.commands = details.commands.map(command => ({
+          ...command,
+          color: { red: command.color.red, green: command.color.green, blue: command.color.blue, alpha: command.color.alpha }
+        }));
+        if (details.background) details.background = { red: details.background.red, green: details.background.green, blue: details.background.blue, alpha: details.background.alpha };
+        details = JSON.parse(JSON.stringify(details));
+        document.getElementById('tab-view-term').click();
+        const line = document.createElement('div');
+        line.className = 'console-line';
+        const preview = document.createElement('div');
+        preview.style.cssText = 'margin:8px 0;padding:12px;background:#fff;border-radius:6px;color:#18212f;font-family:Segoe UI,sans-serif;';
+        const heading = document.createElement('strong');
+        heading.textContent = `${details.title} (${details.width} × ${details.height})`;
+        preview.appendChild(heading);
+        const canvas = document.createElement('canvas');
+        canvas.width = details.width;
+        canvas.height = details.height;
+        canvas.style.cssText = 'display:block;max-width:100%;height:auto;margin-top:8px;border:1px solid #d1d5db;';
+        const context = canvas.getContext('2d');
+        const colorToCss = color => `rgba(${color.red},${color.green},${color.blue},${(color.alpha ?? 255) / 255})`;
+        context.fillStyle = colorToCss(details.background || { red: 238, green: 238, blue: 238 });
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        for (const command of details.commands) {
+          const args = command.args || [];
+          context.fillStyle = context.strokeStyle = colorToCss(command.color);
+          if (command.shape === 'roundRect') {
+            const [x, y, width, height, arcWidth, arcHeight] = args;
+            const radiusX = Math.min(Math.abs(arcWidth) / 2, Math.abs(width) / 2);
+            const radiusY = Math.min(Math.abs(arcHeight) / 2, Math.abs(height) / 2);
+            context.beginPath();
+            context.roundRect(x, y, width, height, [radiusX, radiusY, radiusX, radiusY]);
+            context.fill();
+          } else if (command.shape === 'oval' || command.shape === 'arc') {
+            const [x, y, width, height] = args;
+            context.beginPath();
+            if (command.shape === 'oval') context.ellipse(x + width / 2, y + height / 2, Math.abs(width / 2), Math.abs(height / 2), 0, 0, Math.PI * 2);
+            else context.ellipse(x + width / 2, y + height / 2, Math.abs(width / 2), Math.abs(height / 2), 0, -args[4] * Math.PI / 180, -(args[4] + args[5]) * Math.PI / 180);
+            if (command.fill) context.fill(); else context.stroke();
+          } else if (command.shape === 'rect') {
+            if (command.fill) context.fillRect(...args.slice(0, 4)); else context.strokeRect(...args.slice(0, 4));
+          } else if (command.shape === 'polygon') {
+            context.beginPath();
+            for (let index = 0; index < command.count; index++) {
+              if (index === 0) context.moveTo(command.xs[index], command.ys[index]);
+              else context.lineTo(command.xs[index], command.ys[index]);
+            }
+            context.closePath();
+            if (command.fill) context.fill(); else context.stroke();
+          }
+        }
+        preview.appendChild(canvas);
+        line.appendChild(preview);
+        terminalView.appendChild(line);
+        terminalView.scrollTop = terminalView.scrollHeight;
+      },
       success: (msg) => {
         pendingInline = false;
         const row = document.createElement('div');
@@ -2648,6 +3140,7 @@
       }
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
+        syncEditor();
         runMultiFileEngine();
       }
     });
@@ -2689,6 +3182,110 @@
       logger.info("Salida de la consola copiada al portapapeles.");
     });
 
+    const menuGroups = Array.from(document.querySelectorAll('.menu-group'));
+
+    function closeMenus() {
+      menuGroups.forEach(group => {
+        group.classList.remove('open');
+        group.querySelector('.menu-trigger').setAttribute('aria-expanded', 'false');
+      });
+    }
+
+    menuGroups.forEach(group => {
+      const trigger = group.querySelector('.menu-trigger');
+      trigger.addEventListener('click', () => {
+        const shouldOpen = !group.classList.contains('open');
+        closeMenus();
+        if (shouldOpen) {
+          group.classList.add('open');
+          trigger.setAttribute('aria-expanded', 'true');
+        }
+      });
+
+      trigger.addEventListener('keydown', event => {
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          group.classList.add('open');
+          trigger.setAttribute('aria-expanded', 'true');
+          group.querySelector('.menu-item')?.focus();
+        }
+      });
+    });
+
+    document.addEventListener('click', event => {
+      if (!event.target.closest('.menu-group')) closeMenus();
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeMenus();
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'n' && event.shiftKey) {
+        event.preventDefault();
+        document.getElementById('btn-new-file').click();
+      } else if (key === 'n') {
+        event.preventDefault();
+        document.getElementById('btn-modal-new').click();
+      }
+    });
+
+    document.querySelectorAll('[data-menu-action]').forEach(item => {
+      item.addEventListener('click', async () => {
+        const action = item.dataset.menuAction;
+        const targets = {
+          'new-project': 'btn-modal-new',
+          'new-file': 'btn-new-file',
+          'import-java': 'btn-trigger-import-java',
+          'import-artifact': 'btn-trigger-import-artifact',
+          'download-zip': 'btn-download-zip',
+          run: 'btn-run',
+          verify: 'btn-verify-contracts',
+          stop: 'btn-stop-run',
+          'clear-console': 'btn-clear-term',
+          'view-terminal': 'tab-view-term',
+          'view-ast': 'tab-view-ast'
+        };
+
+        if (targets[action]) {
+          document.getElementById(targets[action]).click();
+        } else if (['undo', 'redo', 'cut', 'copy', 'paste', 'select-all'].includes(action)) {
+          codeInput.focus();
+          if (action === 'select-all') {
+            codeInput.select();
+          } else if (action === 'undo' || action === 'redo') {
+            document.execCommand(action);
+            syncEditor();
+          } else if (action === 'copy' || action === 'cut') {
+            const start = codeInput.selectionStart;
+            const end = codeInput.selectionEnd;
+            if (start !== end) {
+              try {
+                await navigator.clipboard.writeText(codeInput.value.slice(start, end));
+                if (action === 'cut') {
+                  codeInput.setRangeText('', start, end, 'start');
+                  syncEditor();
+                }
+              } catch (error) {
+                logger.error('No se pudo acceder al portapapeles.');
+              }
+            }
+          } else {
+            try {
+              const pastedText = await navigator.clipboard.readText();
+              const start = codeInput.selectionStart;
+              const end = codeInput.selectionEnd;
+              codeInput.setRangeText(pastedText, start, end, 'end');
+              syncEditor();
+            } catch (error) {
+              logger.error('El navegador no permitió leer el portapapeles.');
+            }
+          }
+        }
+        closeMenus();
+      });
+    });
+
     // ==========================================
     // 6. MOTOR DE COMPILACIÓN MULTI-ARCHIVO
     // ==========================================
@@ -2724,6 +3321,7 @@
         const workerLogger = {
           stdout: message => emit('stdout', message),
           stdoutInline: message => emit('stdoutInline', message),
+          window: message => emit('window', message),
           info: message => emit('info', message),
           success: message => emit('success', message),
           error: message => emit('error', message)
@@ -2867,20 +3465,6 @@
       } catch (e) {
         logger.error(e.message);
       }
-    });
-
-    document.getElementById('btn-package-jar').addEventListener('click', () => {
-      saveCurrentEditorContent();
-      const javaCount = Object.keys(project.files).filter(f => f.endsWith('.java')).length;
-      logger.info(`[INFO] Scanning for projects...`);
-      logger.info(`[INFO] Building ${project.artifactId} ${project.version}`);
-      logger.info(`[INFO] --- maven-resources-plugin:resources ---`);
-      logger.info(`[INFO] --- maven-compiler-plugin:compile ---`);
-      logger.info(`[INFO] Compiling ${javaCount} source file(s) to target/classes`);
-      logger.info(`[INFO] --- maven-jar-plugin:jar ---`);
-      logger.info(`[INFO] Building jar: target/${project.artifactId}-${project.version}.jar`);
-      logger.info(`[INFO] Manifest generated: META-INF/MANIFEST.MF -> Main-Class: ${project.groupId}.${project.mainClassName}`);
-      logger.success(`[INFO] BUILD SUCCESS - Artefacto ${project.artifactId}-${project.version}.jar listo.`);
     });
 
     // ==========================================
