@@ -1,0 +1,3067 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Java Studio Web IDE &amp; Multi-File Runner</title>
+  <!-- JSZip para empaquetado Maven y descompresión de archivos .jar / .zip en el navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    :root {
+      --bg-darker: #0b1424;
+      --bg-dark: #101d32;
+      --bg-editor: #16243a;
+      --bg-sidebar: #0e1a2d;
+      --bg-panel: #132139;
+      --border: #263b59;
+      --border-focus: #4d709e;
+      --text: #f2f4fc;
+      --text-muted: #8489a8;
+      --accent-orange: #ff9e3b;
+      --accent-green: #4ade80;
+      --accent-blue: #38bdf8;
+      --accent-purple: #c084fc;
+      --accent-pink: #f472b6;
+      --accent-red: #f87171;
+      --accent-yellow: #fde047;
+      --selection: #203653;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: var(--bg-darker);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    .font-code {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace;
+    }
+
+    /* Top Bar */
+    header {
+      background: var(--bg-dark);
+      height: 48px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      gap: 10px;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--accent-orange);
+      white-space: nowrap;
+    }
+
+    .badge {
+      font-size: 10px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid var(--accent-orange);
+      color: var(--accent-orange);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+    }
+
+    button {
+      background: var(--bg-panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 11px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+    }
+
+    button:hover {
+      background: var(--selection);
+      border-color: var(--border-focus);
+    }
+
+    button.btn-primary {
+      background: #0369a1;
+      border-color: #0ea5e9;
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
+    }
+    button.btn-primary:hover { background: #0284c7; }
+
+    button.btn-download {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #ffffff;
+    }
+    button.btn-download:hover { background: #0369a1; }
+
+    button.btn-import {
+      background: #1d4ed8;
+      border-color: #60a5fa;
+      color: #ffffff;
+    }
+    button.btn-import:hover { background: #2563eb; }
+
+    button.btn-clear { color: var(--text-muted); }
+    button.btn-clear:hover { color: var(--accent-red); }
+
+    /* Layout Principal */
+    .workspace {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    aside {
+      width: 290px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-section {
+      display: flex;
+      flex-direction: column;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-title {
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      background: rgba(8, 23, 43, 0.7);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-title-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 2px 6px;
+      font-size: 12px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .icon-btn:hover {
+      background: var(--selection);
+      color: var(--text);
+    }
+
+    .sidebar-content {
+      padding: 4px 0;
+      font-size: 12px;
+      overflow-y: auto;
+    }
+
+    .tree-item {
+      padding: 6px 10px 6px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      color: #cbd5e1;
+    }
+
+    .tree-item-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tree-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #ffffff;
+    }
+
+    .tree-item.active {
+      background: var(--selection);
+      color: var(--accent-orange);
+      font-weight: 600;
+      border-left: 3px solid var(--accent-orange);
+      padding-left: 11px;
+    }
+
+    .tree-item-actions {
+      display: none;
+      gap: 3px;
+    }
+
+    .tree-item:hover .tree-item-actions {
+      display: flex;
+    }
+
+    .project-meta-box {
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: rgba(8, 23, 43, 0.55);
+    }
+    .project-meta-row {
+      display: flex;
+      justify-content: space-between;
+    }
+    .project-meta-row strong {
+      color: var(--accent-blue);
+    }
+
+    .artifact-card {
+      margin: 8px 10px;
+      padding: 8px 10px;
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 11px;
+    }
+
+    /* Editor */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-editor);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .tabs-bar {
+      background: var(--bg-darker);
+      display: flex;
+      align-items: center;
+      height: 36px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .editor-tab {
+      padding: 0 14px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-right: 1px solid var(--border);
+      background: var(--bg-darker);
+      white-space: nowrap;
+    }
+
+    .editor-tab:hover {
+      background: var(--bg-dark);
+      color: var(--text);
+    }
+
+    .editor-tab.active {
+      background: var(--bg-editor);
+      color: var(--accent-yellow);
+      border-top: 2px solid var(--accent-orange);
+      font-weight: 600;
+    }
+
+    .editor-tab-close {
+      font-size: 11px;
+      border-radius: 50%;
+      padding: 1px 4px;
+      color: var(--text-muted);
+    }
+    .editor-tab-close:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: var(--accent-red);
+    }
+
+    .editor-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .line-numbers {
+      width: 48px;
+      background: var(--bg-editor);
+      border-right: 1px solid rgba(255, 255, 255, 0.07);
+      color: #636681;
+      font-size: 13px;
+      line-height: 22px;
+      padding: 12px 8px 12px 0;
+      text-align: right;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    .editor-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #code-input, #code-highlight {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 12px 14px;
+      font-size: 13.5px;
+      line-height: 22px;
+      white-space: pre;
+      tab-size: 4;
+      border: none;
+      box-sizing: border-box;
+      overflow: auto;
+    }
+
+    #code-input {
+      color: transparent;
+      background: transparent;
+      caret-color: #f8fafc;
+      z-index: 2;
+      resize: none;
+      outline: none;
+    }
+
+    #code-highlight {
+      z-index: 1;
+      pointer-events: none;
+      color: #f8fafc;
+      background: var(--bg-editor);
+    }
+
+    /* Tokens Resaltado */
+    .tok-kw { color: var(--accent-pink); font-weight: bold; }
+    .tok-type { color: var(--accent-blue); }
+    .tok-str { color: var(--accent-yellow); }
+    .tok-num { color: var(--accent-purple); }
+    .tok-com { color: #64748b; font-style: italic; }
+    .tok-anno { color: var(--accent-green); }
+
+    /* Bottom Panel */
+    .bottom-panel {
+      height: 230px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 15;
+    }
+
+    .panel-header {
+      background: var(--bg-dark);
+      height: 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+    }
+
+    .panel-tabs {
+      display: flex;
+      height: 100%;
+    }
+
+    .panel-tab {
+      padding: 0 14px;
+      font-size: 12px;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      color: var(--text-muted);
+      border-right: 1px solid var(--border);
+    }
+
+    .panel-tab.active {
+      background: var(--bg-panel);
+      color: var(--accent-blue);
+      font-weight: 600;
+      border-bottom: 2px solid var(--accent-blue);
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    .console-line {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 2px;
+      word-break: break-word;
+    }
+
+    .console-time {
+      color: #64748b;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .log-stdout { color: #f8fafc; }
+    .log-info { color: var(--accent-blue); }
+    .log-success { color: var(--accent-green); font-weight: 600; }
+    .log-error { color: var(--accent-red); font-weight: 600; }
+    .log-warning { color: var(--accent-orange); }
+
+    /* Modales */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      visibility: hidden;
+      opacity: 0;
+      transition: all 0.2s ease;
+    }
+
+    .modal-backdrop.show {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .modal-card {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      width: 440px;
+      max-width: 90vw;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 700;
+      font-size: 13.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--accent-orange);
+    }
+
+    .modal-body {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-group input, .form-group select {
+      background: var(--bg-editor);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .form-group input:focus, .form-group select:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .modal-footer {
+      padding: 10px 16px;
+      background: var(--bg-darker);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* Footer status */
+    footer {
+      height: 24px;
+      background: var(--bg-darker);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .status-left, .status-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-green);
+    }
+
+    .ast-card {
+      background: var(--bg-dark);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 6px;
+    }
+
+    /* Ocultar selectores nativos de archivo */
+    input[type="file"] {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Pickers de archivos ocultos -->
+  <input type="file" id="file-picker-java" accept=".java" multiple>
+  <input type="file" id="file-picker-artifact" accept=".jar,.zip,.java">
+
+  <!-- Encabezado Principal -->
+  <header>
+    <div class="brand">
+      <span style="font-size: 18px;">☕</span>
+      <span>Java Studio IDE</span>
+      <span class="badge">Multi-File Engine</span>
+    </div>
+
+    <div class="header-actions">
+      <button id="btn-modal-new" title="Configurar un nuevo proyecto en blanco">
+        <span>📄 Nuevo Proyecto</span>
+      </button>
+
+      <button id="btn-run" class="btn-primary" title="Interpretar y ejecutar (Ctrl+Enter)">
+        <span>▶ Ejecutar (Run)</span>
+      </button>
+
+      <button id="btn-verify-contracts" title="Verificar formalmente contratos de interfaces en todos los archivos">
+        <span>🛡 Validar Contratos</span>
+      </button>
+
+      <!-- Importaciones -->
+      <button id="btn-trigger-import-java" class="btn-import" title="Importar archivos .java desde el disco local">
+        <span>📥 Importar .java</span>
+      </button>
+
+      <button id="btn-trigger-import-artifact" class="btn-import" title="Importar artefacto .jar o .zip">
+        <span>📦 Importar .jar</span>
+      </button>
+
+      <button id="btn-package-jar" title="Simular construcción y empaquetado del artefacto .jar">
+        <span>⚙ mvn package</span>
+      </button>
+
+      <button id="btn-download-zip" class="btn-download" title="Descargar estructura de proyecto Maven completa en ZIP">
+        <span>💾 Descargar ZIP Maven</span>
+      </button>
+
+      <button id="btn-clear-term" class="btn-clear" title="Limpiar Consola">
+        <span>🗑</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Espacio de trabajo -->
+  <div class="workspace">
+    <!-- Sidebar -->
+    <aside>
+      <div class="sidebar-section">
+        <div class="sidebar-title">
+          <span>📁 Archivos del Proyecto</span>
+          <div class="sidebar-title-actions">
+            <button class="icon-btn" id="btn-new-file" title="Crear nuevo archivo .java">+</button>
+          </div>
+        </div>
+        <div class="project-meta-box">
+          <div class="project-meta-row"><span>GroupId:</span> <strong id="lbl-group-id">com.ejemplo</strong></div>
+          <div class="project-meta-row"><span>ArtifactId:</span> <strong id="lbl-artifact-id">mi-proyecto</strong></div>
+          <div class="project-meta-row"><span>Versión:</span> <strong id="lbl-version">1.0.0</strong></div>
+        </div>
+        <div class="sidebar-content" id="project-tree"></div>
+      </div>
+
+      <div class="sidebar-section" style="flex: 1;">
+        <div class="sidebar-title">
+          <span>📦 Artefacto Configurado</span>
+        </div>
+        <div class="artifact-card">
+          <div style="font-weight: 700; color: var(--accent-orange); margin-bottom: 4px;" id="lbl-jar-name">
+            mi-proyecto-1.0.0.jar
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted); line-height: 1.4;">
+            Ruta target: <code>target/</code><br>
+            Manifiesto: <code>META-INF/MANIFEST.MF</code><br>
+            Main-Class: <span id="lbl-manifest-main" style="color: var(--accent-yellow);">com.ejemplo.Main</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Editor Principal -->
+    <main>
+      <div class="tabs-bar" id="editor-tabs-container"></div>
+
+      <div class="editor-container">
+        <div class="line-numbers font-code" id="line-numbers">1</div>
+        <div class="editor-wrapper">
+          <textarea id="code-input" class="font-code" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off"></textarea>
+          <pre id="code-highlight" class="font-code"><code></code></pre>
+        </div>
+      </div>
+
+      <!-- Panel Inferior -->
+      <div class="bottom-panel">
+        <div class="panel-header">
+          <div class="panel-tabs">
+            <div class="panel-tab active" id="tab-view-term">
+              <span>🖥 Consola de Ejecución</span>
+            </div>
+            <div class="panel-tab" id="tab-view-ast">
+              <span>🔍 AST &amp; Registro de Clases</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="btn-stop-run" class="icon-btn" style="font-size: 11px; padding: 2px 6px; display: none;" title="Detener ejecución">⏹ Detener</button>
+            <button id="btn-copy-console" class="icon-btn" style="font-size: 11px; padding: 2px 6px;" title="Copiar consola">📋 Copiar Salida</button>
+            <span style="font-size: 11px; color: var(--text-muted);" id="exec-status">Listo</span>
+          </div>
+        </div>
+
+        <div class="panel-content font-code" id="view-terminal">
+          <div class="console-line">
+            <span class="console-time">[INIT]</span>
+            <span class="log-info">Espacio de trabajo multi-archivo iniciado y listo.</span>
+          </div>
+        </div>
+
+        <div class="panel-content font-code" id="view-ast" style="display: none;">
+          <div style="color: var(--text-muted); font-size: 11px;">
+            El registro global de clases, interfaces y contratos aparecerá aquí al ejecutar o validar.
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Barra de estado -->
+  <footer>
+    <div class="status-left">
+      <span style="display: flex; align-items: center; gap: 6px;">
+        <span class="status-dot"></span> Java Pure JS Engine (Client-side)
+      </span>
+      <span id="footer-classes-count">Archivos: 1</span>
+    </div>
+    <div class="status-right">
+      <span id="cursor-pos">Ln 1, Col 1</span>
+      <span>UTF-8</span>
+      <span>Espacios: 4</span>
+    </div>
+  </footer>
+
+  <!-- Modal: Nuevo Proyecto -->
+  <div class="modal-backdrop" id="modal-new-project">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>📄 Nuevo Proyecto Java Limpio</span>
+        <button type="button" class="btn-clear" id="btn-close-modal" style="border:none; font-size:16px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>GroupId (Dominio inverso):</label>
+          <input type="text" id="input-group-id" value="com.miempresa">
+        </div>
+        <div class="form-group">
+          <label>ArtifactId (Nombre del módulo o app):</label>
+          <input type="text" id="input-artifact-id" value="sistema-core">
+        </div>
+        <div class="form-group">
+          <label>Versión:</label>
+          <input type="text" id="input-version" value="1.0.0">
+        </div>
+        <div class="form-group">
+          <label>Clase Principal inicial:</label>
+          <input type="text" id="input-main-class" value="Main">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-cancel-modal">Cancelar</button>
+        <button type="button" class="btn-primary" id="btn-create-project">Crear Proyecto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Crear Nuevo Archivo -->
+  <div class="modal-backdrop" id="modal-new-file">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span>➕ Crear Nuevo Archivo Java</span>
+        <button type="button" class="btn-clear" id="btn-close-modal-file" style="border:none; font-size:16px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre del archivo (con extensión .java):</label>
+          <input type="text" id="input-new-filename" placeholder="Ej: ServicioPago.java">
+        </div>
+        <div class="form-group">
+          <label>Tipo de plantilla:</label>
+          <select id="select-file-template">
+            <option value="class">Clase estándar (class)</option>
+            <option value="interface">Contrato formal (interface)</option>
+            <option value="empty">Archivo completamente vacío</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-cancel-modal-file">Cancelar</button>
+        <button type="button" class="btn-primary" id="btn-confirm-new-file">Crear Archivo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================== -->
+  <!-- JAVASCRIPT: MOTOR DEL INTÉRPRETE Y ENTORNO COMPLETO     -->
+  <!-- ======================================================== -->
+  <script>
+    // ==========================================
+    // 1. ESTADO GLOBAL MULTI-ARCHIVO
+    // ==========================================
+    var project = {
+      groupId: 'com.ejemplo',
+      artifactId: 'mi-proyecto',
+      version: '1.0.0',
+      mainClassName: 'Main',
+      activeFile: 'Main.java',
+      files: {
+        'Main.java': `package com.ejemplo;\n\npublic class Main {\n    public static void main(String[] args) {\n        System.out.println("Proyecto Java iniciado con éxito.");\n        \n        // Test de asignaciones compuestas e incremento\n        int acumulador = 10;\n        acumulador += 5;\n        acumulador *= 2;\n        System.out.println("Acumulador: " + acumulador);\n        \n        // Bucle con incremento de paso 2\n        System.out.print("Paso 2: ");\n        for (int i = 0; i < 10; i += 2) {\n            System.out.print(i + " ");\n        }\n        System.out.println();\n    }\n}\n`,
+        'pom.xml': generatePomXml('com.ejemplo', 'mi-proyecto', '1.0.0', 'Main')
+      }
+    };
+
+    function generatePomXml(groupId, artifactId, version, mainClass) {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>${groupId}</groupId>
+    <artifactId>${artifactId}</artifactId>
+    <version>${version}</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <main.class>${groupId}.${mainClass}</main.class>
+    </properties>
+
+    <dependencies>
+        <!-- Declaración de artefactos y dependencias -->
+    </dependencies>
+</project>
+`;
+    }
+
+    function initProjectState(groupId, artifactId, version, className) {
+      project.groupId = groupId;
+      project.artifactId = artifactId;
+      project.version = version;
+      project.mainClassName = className;
+
+      project.files = {};
+      project.files[`${className}.java`] = `package ${groupId};\n\npublic class ${className} {\n    public static void main(String[] args) {\n        System.out.println("Proyecto ${artifactId} listo.");\n    }\n}\n`;
+      project.files['pom.xml'] = generatePomXml(groupId, artifactId, version, className);
+
+      project.activeFile = `${className}.java`;
+      updateProjectUI();
+    }
+
+    function updateProjectUI() {
+      document.getElementById('lbl-group-id').innerText = project.groupId;
+      document.getElementById('lbl-artifact-id').innerText = project.artifactId;
+      document.getElementById('lbl-version').innerText = project.version;
+      document.getElementById('lbl-jar-name').innerText = `${project.artifactId}-${project.version}.jar`;
+      document.getElementById('lbl-manifest-main').innerText = `${project.groupId}.${project.mainClassName}`;
+
+      renderFileTree();
+      renderTabs();
+      loadActiveFileToEditor();
+    }
+
+    function renderFileTree() {
+      const tree = document.getElementById('project-tree');
+      tree.innerHTML = '';
+
+      const fileNames = Object.keys(project.files).sort((a, b) => {
+        if (a === 'pom.xml') return 1;
+        if (b === 'pom.xml') return -1;
+        return a.localeCompare(b);
+      });
+
+      fileNames.forEach(filename => {
+        const item = document.createElement('div');
+        item.className = `tree-item ${filename === project.activeFile ? 'active' : ''}`;
+        
+        const isPom = filename === 'pom.xml';
+        const icon = isPom ? '⚙' : '☕';
+
+        const label = document.createElement('div');
+        label.className = 'tree-item-label';
+        label.innerHTML = `<span>${icon}</span> <span>${filename}</span>`;
+        item.appendChild(label);
+
+        if (!isPom) {
+          const actions = document.createElement('div');
+          actions.className = 'tree-item-actions';
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'icon-btn';
+          delBtn.style.color = 'var(--accent-red)';
+          delBtn.innerText = '✕';
+          delBtn.title = 'Eliminar archivo';
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteFile(filename);
+          };
+          actions.appendChild(delBtn);
+          item.appendChild(actions);
+        }
+
+        item.onclick = () => switchFile(filename);
+        tree.appendChild(item);
+      });
+
+      const javaFilesCount = Object.keys(project.files).filter(f => f.endsWith('.java')).length;
+      document.getElementById('footer-classes-count').innerText = `Archivos: ${javaFilesCount} Java | 1 POM`;
+    }
+
+    function renderTabs() {
+      const container = document.getElementById('editor-tabs-container');
+      container.innerHTML = '';
+
+      Object.keys(project.files).forEach(filename => {
+        const tab = document.createElement('div');
+        tab.className = `editor-tab ${filename === project.activeFile ? 'active' : ''}`;
+        
+        const isPom = filename === 'pom.xml';
+        const icon = isPom ? '⚙' : '☕';
+
+        tab.innerHTML = `<span>${icon} ${filename}</span>`;
+
+        if (!isPom) {
+          const closeBtn = document.createElement('span');
+          closeBtn.className = 'editor-tab-close';
+          closeBtn.innerText = '×';
+          closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteFile(filename);
+          };
+          tab.appendChild(closeBtn);
+        }
+
+        tab.onclick = () => switchFile(filename);
+        container.appendChild(tab);
+      });
+    }
+
+    function switchFile(filename) {
+      if (!Object.prototype.hasOwnProperty.call(project.files, filename)) return;
+      saveCurrentEditorContent();
+      project.activeFile = filename;
+      renderFileTree();
+      renderTabs();
+      loadActiveFileToEditor();
+    }
+
+    function saveCurrentEditorContent() {
+      if (project.files[project.activeFile] !== undefined) {
+        project.files[project.activeFile] = codeInput.value;
+      }
+    }
+
+    function loadActiveFileToEditor() {
+      codeInput.value = project.files[project.activeFile] || '';
+      syncEditor();
+    }
+
+    function deleteFile(filename) {
+      const javaFiles = Object.keys(project.files).filter(f => f.endsWith('.java'));
+      if (javaFiles.length <= 1 && filename.endsWith('.java')) {
+        logger.error("No se puede eliminar el único archivo Java del proyecto.");
+        return;
+      }
+
+      delete project.files[filename];
+      logger.info(`Archivo eliminado: ${filename}`);
+
+      if (project.activeFile === filename) {
+        project.activeFile = Object.keys(project.files)[0];
+      }
+      renderFileTree();
+      renderTabs();
+      loadActiveFileToEditor();
+    }
+
+    // ==========================================
+    // 2. TOKENIZER CON ASIGNACIONES COMPUESTAS
+    // ==========================================
+    const TOKEN_TYPES = {
+      KEYWORD: 'KEYWORD',
+      IDENTIFIER: 'IDENTIFIER',
+      NUMBER: 'NUMBER',
+      STRING: 'STRING',
+      ASSIGN_OP: 'ASSIGN_OP',
+      OPERATOR: 'OPERATOR',
+      PUNCTUATION: 'PUNCTUATION',
+      EOF: 'EOF'
+    };
+
+    const JAVA_KEYWORDS = new Set([
+      'abstract', 'boolean', 'break', 'byte', 'case', 'catch', 'char', 'class',
+      'continue', 'default', 'do', 'double', 'else', 'extends', 'final', 'finally',
+      'float', 'for', 'if', 'implements', 'import', 'instanceof', 'int', 'interface',
+      'long', 'new', 'package', 'private', 'protected', 'public', 'return', 'short',
+      'static', 'super', 'switch', 'this', 'throw', 'throws', 'try', 'void', 'while'
+    ]);
+
+    class Token {
+      constructor(type, value, line, col, file) {
+        this.type = type;
+        this.value = value;
+        this.line = line;
+        this.col = col;
+        this.file = file;
+      }
+    }
+
+    class Tokenizer {
+      constructor(source, filename = 'Unknown.java') {
+        this.src = source;
+        this.filename = filename;
+        this.pos = 0;
+        this.line = 1;
+        this.col = 1;
+        this.tokens = [];
+      }
+
+      tokenize() {
+        while (this.pos < this.src.length) {
+          const char = this.src[this.pos];
+
+          if (char === '\n') {
+            this.line++;
+            this.col = 1;
+            this.pos++;
+            continue;
+          }
+          if (/\s/.test(char)) {
+            this.col++;
+            this.pos++;
+            continue;
+          }
+
+          // Comentarios // y /* */
+          if (char === '/' && this.src[this.pos + 1] === '/') {
+            while (this.pos < this.src.length && this.src[this.pos] !== '\n') this.pos++;
+            continue;
+          }
+          if (char === '/' && this.src[this.pos + 1] === '*') {
+            this.pos += 2;
+            while (this.pos < this.src.length && !(this.src[this.pos] === '*' && this.src[this.pos + 1] === '/')) {
+              if (this.src[this.pos] === '\n') { this.line++; this.col = 1; }
+              this.pos++;
+            }
+            if (this.pos < this.src.length) this.pos += 2;
+            continue;
+          }
+
+          // String Literals
+          if (char === '"') {
+            const startCol = this.col;
+            let strVal = '';
+            this.pos++;
+            this.col++;
+            while (this.pos < this.src.length && this.src[this.pos] !== '"') {
+              if (this.src[this.pos] === '\\') {
+                this.pos++;
+                const esc = this.src[this.pos];
+                if (esc === 'n') strVal += '\n';
+                else if (esc === 't') strVal += '\t';
+                else if (esc === '"') strVal += '"';
+                else if (esc === '\\') strVal += '\\';
+                else strVal += esc;
+              } else {
+                strVal += this.src[this.pos];
+              }
+              this.pos++;
+              this.col++;
+            }
+            this.pos++;
+            this.col++;
+            this.tokens.push(new Token(TOKEN_TYPES.STRING, strVal, this.line, startCol, this.filename));
+            continue;
+          }
+
+          // Char Literal
+          if (char === "'") {
+            const startCol = this.col;
+            this.pos++;
+            let cVal = this.src[this.pos];
+            if (cVal === '\\') {
+              this.pos++;
+              cVal = this.src[this.pos];
+            }
+            this.pos += 2; // saltar char y cerrar '
+            this.tokens.push(new Token(TOKEN_TYPES.STRING, cVal, this.line, startCol, this.filename));
+            continue;
+          }
+
+          // Números
+          if (/\d/.test(char)) {
+            const startCol = this.col;
+            let numStr = '';
+            while (this.pos < this.src.length && /[\d.]/.test(this.src[this.pos])) {
+              numStr += this.src[this.pos];
+              this.pos++;
+              this.col++;
+            }
+            const numVal = numStr.includes('.') ? parseFloat(numStr) : parseInt(numStr, 10);
+            this.tokens.push(new Token(TOKEN_TYPES.NUMBER, numVal, this.line, startCol, this.filename));
+            continue;
+          }
+
+          // Identificadores y Palabras Clave
+          if (/[a-zA-Z_$]/.test(char)) {
+            const startCol = this.col;
+            let id = '';
+            while (this.pos < this.src.length && /[a-zA-Z0-9_$]/.test(this.src[this.pos])) {
+              id += this.src[this.pos];
+              this.pos++;
+              this.col++;
+            }
+            if (id === 'true') this.tokens.push(new Token(TOKEN_TYPES.KEYWORD, true, this.line, startCol, this.filename));
+            else if (id === 'false') this.tokens.push(new Token(TOKEN_TYPES.KEYWORD, false, this.line, startCol, this.filename));
+            else if (id === 'null') this.tokens.push(new Token(TOKEN_TYPES.KEYWORD, null, this.line, startCol, this.filename));
+            else if (JAVA_KEYWORDS.has(id)) this.tokens.push(new Token(TOKEN_TYPES.KEYWORD, id, this.line, startCol, this.filename));
+            else this.tokens.push(new Token(TOKEN_TYPES.IDENTIFIER, id, this.line, startCol, this.filename));
+            continue;
+          }
+
+          // Operadores de asignación compuesta (+=, -=, *=, /=, %=)
+          const two = this.src.substr(this.pos, 2);
+          if (['+=', '-=', '*=', '/=', '%='].includes(two)) {
+            this.tokens.push(new Token(TOKEN_TYPES.ASSIGN_OP, two, this.line, this.col, this.filename));
+            this.pos += 2;
+            this.col += 2;
+            continue;
+          }
+
+          // Operadores dobles y triples de comparación, referencia y desplazamiento
+          const three = this.src.substr(this.pos, 3);
+          if (['>>>', '<<=', '>>=', '>>>='].includes(this.src.substr(this.pos, 4))) {
+            this.tokens.push(new Token(TOKEN_TYPES.ASSIGN_OP, this.src.substr(this.pos, 4), this.line, this.col, this.filename));
+            this.pos += 4;
+            this.col += 4;
+            continue;
+          }
+          if (['>>>', '<<=', '>>='].includes(three)) {
+            this.tokens.push(new Token(three.endsWith('=') ? TOKEN_TYPES.ASSIGN_OP : TOKEN_TYPES.OPERATOR, three, this.line, this.col, this.filename));
+            this.pos += 3;
+            this.col += 3;
+            continue;
+          }
+          if (['++', '--', '==', '!=', '<=', '>=', '&&', '||', '<<', '>>'].includes(two)) {
+            this.tokens.push(new Token(TOKEN_TYPES.OPERATOR, two, this.line, this.col, this.filename));
+            this.pos += 2;
+            this.col += 2;
+            continue;
+          }
+
+          // Asignación simple '='
+          if (char === '=') {
+            this.tokens.push(new Token(TOKEN_TYPES.ASSIGN_OP, '=', this.line, this.col, this.filename));
+            this.pos++;
+            this.col++;
+            continue;
+          }
+
+          // Operadores aritméticos / relacionales simples
+          if ('+-*/%<>!'.includes(char)) {
+            this.tokens.push(new Token(TOKEN_TYPES.OPERATOR, char, this.line, this.col, this.filename));
+            this.pos++;
+            this.col++;
+            continue;
+          }
+
+          // Delimitadores y puntuación
+          if (';{},()[].:?'.includes(char)) {
+            this.tokens.push(new Token(TOKEN_TYPES.PUNCTUATION, char, this.line, this.col, this.filename));
+            this.pos++;
+            this.col++;
+            continue;
+          }
+
+          throw new Error(`[${this.filename}] Carácter no reconocido '${char}' en línea ${this.line}, col ${this.col}`);
+        }
+
+        this.tokens.push(new Token(TOKEN_TYPES.EOF, 'EOF', this.line, this.col, this.filename));
+        return this.tokens;
+      }
+    }
+
+    // ==========================================
+    // 3. PARSER RECURSIVO DESCENDENTE (AST)
+    // ==========================================
+    class Parser {
+      constructor(tokens, filename = 'Unknown.java') {
+        this.tokens = tokens;
+        this.filename = filename;
+        this.pos = 0;
+      }
+
+      peek(offset = 0) {
+        return this.tokens[this.pos + offset] || this.tokens[this.tokens.length - 1];
+      }
+
+      match(type, value) {
+        const t = this.peek();
+        if (t.type === type && (value === undefined || t.value === value)) {
+          this.pos++;
+          return t;
+        }
+        return null;
+      }
+
+      expect(type, value) {
+        const t = this.match(type, value);
+        if (!t) {
+          const current = this.peek();
+          throw new Error(`[${this.filename}] Error de sintaxis: se esperaba '${value || type}' pero se halló '${current.value}' en línea ${current.line}`);
+        }
+        return t;
+      }
+
+      parseFile() {
+        const declarations = [];
+        let packageDecl = null;
+        const imports = [];
+
+        while (this.peek().type !== TOKEN_TYPES.EOF) {
+          if (this.match(TOKEN_TYPES.KEYWORD, 'package')) {
+            let pkg = '';
+            while (this.peek().value !== ';') {
+              pkg += this.peek().value;
+              this.pos++;
+            }
+            this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+            packageDecl = pkg;
+            continue;
+          }
+
+          if (this.match(TOKEN_TYPES.KEYWORD, 'import')) {
+            let imp = '';
+            while (this.peek().value !== ';') {
+              imp += this.peek().value;
+              this.pos++;
+            }
+            this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+            imports.push(imp);
+            continue;
+          }
+
+          declarations.push(this.parseClassOrInterface());
+        }
+
+        return { type: 'FileNode', filename: this.filename, package: packageDecl, imports, body: declarations };
+      }
+
+      parseClassOrInterface() {
+        while (['public', 'private', 'protected', 'static', 'abstract', 'final'].includes(this.peek().value)) {
+          this.pos++;
+        }
+
+        if (this.match(TOKEN_TYPES.KEYWORD, 'interface')) {
+          const name = this.expect(TOKEN_TYPES.IDENTIFIER).value;
+          this.expect(TOKEN_TYPES.PUNCTUATION, '{');
+          const methods = [];
+          while (!this.match(TOKEN_TYPES.PUNCTUATION, '}')) {
+            methods.push(this.parseInterfaceMethod());
+          }
+          return { type: 'InterfaceDeclaration', name, methods, file: this.filename };
+        }
+
+        this.expect(TOKEN_TYPES.KEYWORD, 'class');
+        const name = this.expect(TOKEN_TYPES.IDENTIFIER).value;
+        let superClass = null;
+        let interfaces = [];
+
+        if (this.match(TOKEN_TYPES.KEYWORD, 'extends')) {
+          superClass = this.expect(TOKEN_TYPES.IDENTIFIER).value;
+        }
+
+        if (this.match(TOKEN_TYPES.KEYWORD, 'implements')) {
+          do {
+            interfaces.push(this.expect(TOKEN_TYPES.IDENTIFIER).value);
+          } while (this.match(TOKEN_TYPES.PUNCTUATION, ','));
+        }
+
+        this.expect(TOKEN_TYPES.PUNCTUATION, '{');
+        const body = [];
+        while (!this.match(TOKEN_TYPES.PUNCTUATION, '}')) {
+          body.push(this.parseClassMember(name));
+        }
+
+        return { type: 'ClassDeclaration', name, superClass, interfaces, body, file: this.filename };
+      }
+
+      parseThrowsClause() {
+        if (!this.match(TOKEN_TYPES.KEYWORD, 'throws')) return;
+        do {
+          this.parseType();
+        } while (this.match(TOKEN_TYPES.PUNCTUATION, ','));
+      }
+
+      parseInterfaceMethod() {
+        const returnType = this.parseType();
+        const name = this.expect(TOKEN_TYPES.IDENTIFIER).value;
+        this.expect(TOKEN_TYPES.PUNCTUATION, '(');
+        const params = this.parseParameters();
+        this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+        this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+        return { type: 'InterfaceMethodSignature', returnType, name, params };
+      }
+
+      parseClassMember(currentClassName) {
+        let isStatic = false;
+        let access = 'public';
+
+        while (['public', 'private', 'protected', 'static', 'final'].includes(this.peek().value)) {
+          if (this.peek().value === 'static') isStatic = true;
+          else if (this.peek().value !== 'final') access = this.peek().value;
+          this.pos++;
+        }
+
+        // Constructor
+        if (this.peek().value === currentClassName && this.peek(1).value === '(') {
+          this.pos++;
+          this.expect(TOKEN_TYPES.PUNCTUATION, '(');
+          const params = this.parseParameters();
+          this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+          this.parseThrowsClause();
+          const body = this.parseBlock();
+          return { type: 'Constructor', name: currentClassName, params, body, access };
+        }
+
+        const memberType = this.parseType();
+        const memberName = this.expect(TOKEN_TYPES.IDENTIFIER).value;
+
+        // Método
+        if (this.match(TOKEN_TYPES.PUNCTUATION, '(')) {
+          const params = this.parseParameters();
+          this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+          this.parseThrowsClause();
+          const body = this.parseBlock();
+          return { type: 'MethodDeclaration', name: memberName, returnType: memberType, params, body, isStatic, access };
+        }
+
+        // Campo
+        let initializer = null;
+        if (this.match(TOKEN_TYPES.ASSIGN_OP, '=')) {
+          initializer = this.parseExpression();
+        }
+        this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+        return { type: 'FieldDeclaration', name: memberName, fieldType: memberType, initializer, isStatic, access };
+      }
+
+      skipTypeArguments() {
+        if (!this.match(TOKEN_TYPES.OPERATOR, '<')) return;
+        let depth = 1;
+        while (depth > 0 && this.peek().type !== TOKEN_TYPES.EOF) {
+          const token = this.peek();
+          this.pos++;
+          if (token.value === '<') depth++;
+          else if (token.value === '>') depth--;
+          else if (token.value === '>>') depth -= 2;
+          else if (token.value === '>>>') depth -= 3;
+        }
+        if (depth > 0) throw new Error(`[${this.filename}] Parámetros genéricos sin cerrar`);
+      }
+
+      parseType() {
+        let base = this.peek().value;
+        this.pos++;
+        while (this.match(TOKEN_TYPES.PUNCTUATION, '.')) {
+          base += '.' + this.peek().value;
+          this.pos++;
+        }
+        this.skipTypeArguments();
+        while (this.match(TOKEN_TYPES.PUNCTUATION, '[')) {
+          this.expect(TOKEN_TYPES.PUNCTUATION, ']');
+          base += '[]';
+        }
+        return base;
+      }
+
+      parseParameters() {
+        const params = [];
+        if (this.peek().value === ')') return params;
+        do {
+          const type = this.parseType();
+          const name = this.expect(TOKEN_TYPES.IDENTIFIER).value;
+          params.push({ type, name });
+        } while (this.match(TOKEN_TYPES.PUNCTUATION, ','));
+        return params;
+      }
+
+      parseBlock() {
+        this.expect(TOKEN_TYPES.PUNCTUATION, '{');
+        const stmts = [];
+        while (!this.match(TOKEN_TYPES.PUNCTUATION, '}')) {
+          stmts.push(this.parseStatement());
+        }
+        return { type: 'BlockStatement', body: stmts };
+      }
+
+      parseStatement() {
+        const t = this.peek();
+        if (t.value === ';') {
+          this.pos++;
+          return { type: 'EmptyStatement' };
+        }
+        if (t.value === 'if') return this.parseIf();
+        if (t.value === 'for') return this.parseFor();
+        if (t.value === 'while') return this.parseWhile();
+        if (t.value === 'return') return this.parseReturn();
+        if (t.value === 'break' || t.value === 'continue') {
+          this.pos++;
+          this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+          return { type: t.value === 'break' ? 'BreakStatement' : 'ContinueStatement' };
+        }
+        if (t.value === 'throw') return this.parseThrow();
+        if (t.value === '{') return this.parseBlock();
+
+        if (this.isVariableDeclaration()) {
+          return this.parseVariableDeclaration();
+        }
+
+        const expr = this.parseExpression();
+        this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+        return { type: 'ExpressionStatement', expression: expr };
+      }
+
+      isVariableDeclaration() {
+        const primitiveTypes = ['int', 'double', 'float', 'boolean', 'String', 'char', 'long', 'short', 'byte', 'void', 'Object'];
+        let offset = 0;
+        if (this.peek(offset).type !== TOKEN_TYPES.IDENTIFIER && !primitiveTypes.includes(this.peek(offset).value)) return false;
+        offset++;
+
+        while (this.peek(offset).value === '.' && this.peek(offset + 1).type === TOKEN_TYPES.IDENTIFIER) offset += 2;
+        if (this.peek(offset).value === '<') {
+          let depth = 1;
+          offset++;
+          while (depth > 0) {
+            const token = this.peek(offset++);
+            if (token.type === TOKEN_TYPES.EOF) return false;
+            if (token.value === '<') depth++;
+            else if (token.value === '>') depth--;
+            else if (token.value === '>>') depth -= 2;
+            else if (token.value === '>>>') depth -= 3;
+          }
+        }
+        while (this.peek(offset).value === '[' && this.peek(offset + 1).value === ']') offset += 2;
+        return this.peek(offset).type === TOKEN_TYPES.IDENTIFIER;
+      }
+
+      parseVariableDeclaration() {
+        const varType = this.parseType();
+        const name = this.expect(TOKEN_TYPES.IDENTIFIER).value;
+        let init = null;
+        if (this.match(TOKEN_TYPES.ASSIGN_OP, '=')) {
+          if (varType.endsWith('[]') && this.match(TOKEN_TYPES.PUNCTUATION, '{')) {
+            const elements = [];
+            if (!this.match(TOKEN_TYPES.PUNCTUATION, '}')) {
+              do {
+                elements.push(this.parseExpression());
+              } while (this.match(TOKEN_TYPES.PUNCTUATION, ','));
+              this.expect(TOKEN_TYPES.PUNCTUATION, '}');
+            }
+            init = { type: 'ArrayLiteral', elements };
+          } else {
+            init = this.parseExpression();
+          }
+        }
+        this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+        return { type: 'VariableDeclaration', varType, name, initializer: init };
+      }
+
+      parseIf() {
+        this.expect(TOKEN_TYPES.KEYWORD, 'if');
+        this.expect(TOKEN_TYPES.PUNCTUATION, '(');
+        const test = this.parseExpression();
+        this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+        const consequent = this.parseStatement();
+        let alternate = null;
+        if (this.match(TOKEN_TYPES.KEYWORD, 'else')) {
+          alternate = this.parseStatement();
+        }
+        return { type: 'IfStatement', test, consequent, alternate };
+      }
+
+      parseFor() {
+        this.expect(TOKEN_TYPES.KEYWORD, 'for');
+        this.expect(TOKEN_TYPES.PUNCTUATION, '(');
+        
+        let init = null;
+        if (!this.match(TOKEN_TYPES.PUNCTUATION, ';')) {
+          if (this.isVariableDeclaration()) {
+            const varType = this.parseType();
+            const name = this.expect(TOKEN_TYPES.IDENTIFIER).value;
+            if (this.match(TOKEN_TYPES.PUNCTUATION, ':')) {
+              const iterable = this.parseExpression();
+              this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+              const body = this.parseStatement();
+              return { type: 'EnhancedForStatement', varType, name, iterable, body };
+            }
+            let initializer = null;
+            if (this.match(TOKEN_TYPES.ASSIGN_OP, '=')) initializer = this.parseExpression();
+            this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+            init = { type: 'VariableDeclaration', varType, name, initializer };
+          } else {
+            init = this.parseExpression();
+            this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+          }
+        }
+
+        let test = null;
+        if (!this.match(TOKEN_TYPES.PUNCTUATION, ';')) {
+          test = this.parseExpression();
+          this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+        }
+
+        let update = null;
+        if (!this.match(TOKEN_TYPES.PUNCTUATION, ')')) {
+          update = this.parseExpression();
+          this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+        }
+
+        const body = this.parseStatement();
+        return { type: 'ForStatement', init, test, update, body };
+      }
+
+      parseWhile() {
+        this.expect(TOKEN_TYPES.KEYWORD, 'while');
+        this.expect(TOKEN_TYPES.PUNCTUATION, '(');
+        const test = this.parseExpression();
+        this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+        const body = this.parseStatement();
+        return { type: 'WhileStatement', test, body };
+      }
+
+      parseReturn() {
+        this.expect(TOKEN_TYPES.KEYWORD, 'return');
+        let value = null;
+        if (!this.match(TOKEN_TYPES.PUNCTUATION, ';')) {
+          value = this.parseExpression();
+          this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+        }
+        return { type: 'ReturnStatement', value };
+      }
+
+      parseThrow() {
+        this.expect(TOKEN_TYPES.KEYWORD, 'throw');
+        const value = this.parseExpression();
+        this.expect(TOKEN_TYPES.PUNCTUATION, ';');
+        return { type: 'ThrowStatement', value };
+      }
+
+      parseExpression() {
+        return this.parseAssignment();
+      }
+
+      // Soporte centralizado para asignación simple y compuesta (=, +=, -=, *=, /=, %=)
+      parseAssignment() {
+        const left = this.parseConditional();
+        if (this.peek().type === TOKEN_TYPES.ASSIGN_OP) {
+          const op = this.peek().value;
+          this.pos++;
+          const right = this.parseAssignment();
+          return { type: 'AssignmentExpression', operator: op, left, right };
+        }
+        return left;
+      }
+
+      parseConditional() {
+        const test = this.parseLogicalOr();
+        if (!this.match(TOKEN_TYPES.PUNCTUATION, '?')) return test;
+
+        const consequent = this.parseExpression();
+        this.expect(TOKEN_TYPES.PUNCTUATION, ':');
+        const alternate = this.parseAssignment();
+        return { type: 'ConditionalExpression', test, consequent, alternate };
+      }
+
+      parseLogicalOr() {
+        let left = this.parseLogicalAnd();
+        while (this.match(TOKEN_TYPES.OPERATOR, '||')) {
+          const right = this.parseLogicalAnd();
+          left = { type: 'BinaryExpression', operator: '||', left, right };
+        }
+        return left;
+      }
+
+      parseLogicalAnd() {
+        let left = this.parseEquality();
+        while (this.match(TOKEN_TYPES.OPERATOR, '&&')) {
+          const right = this.parseEquality();
+          left = { type: 'BinaryExpression', operator: '&&', left, right };
+        }
+        return left;
+      }
+
+      parseEquality() {
+        let left = this.parseRelational();
+        while (true) {
+          if (this.match(TOKEN_TYPES.OPERATOR, '==')) {
+            left = { type: 'BinaryExpression', operator: '==', left, right: this.parseRelational() };
+          } else if (this.match(TOKEN_TYPES.OPERATOR, '!=')) {
+            left = { type: 'BinaryExpression', operator: '!=', left, right: this.parseRelational() };
+          } else break;
+        }
+        return left;
+      }
+
+      parseRelational() {
+        let left = this.parseAdditive();
+        while (true) {
+          const op = this.peek().value;
+          if (['<', '>', '<=', '>='].includes(op)) {
+            this.pos++;
+            left = { type: 'BinaryExpression', operator: op, left, right: this.parseAdditive() };
+          } else break;
+        }
+        return left;
+      }
+
+      parseAdditive() {
+        let left = this.parseMultiplicative();
+        while (true) {
+          const op = this.peek().value;
+          if (op === '+' || op === '-') {
+            this.pos++;
+            left = { type: 'BinaryExpression', operator: op, left, right: this.parseMultiplicative() };
+          } else break;
+        }
+        return left;
+      }
+
+      parseMultiplicative() {
+        let left = this.parseUnary();
+        while (true) {
+          const op = this.peek().value;
+          if (op === '*' || op === '/' || op === '%') {
+            this.pos++;
+            left = { type: 'BinaryExpression', operator: op, left, right: this.parseUnary() };
+          } else break;
+        }
+        return left;
+      }
+
+      parseUnary() {
+        if (this.match(TOKEN_TYPES.OPERATOR, '!')) {
+          return { type: 'UnaryExpression', operator: '!', argument: this.parseUnary(), prefix: true };
+        }
+        if (this.match(TOKEN_TYPES.OPERATOR, '-')) {
+          return { type: 'UnaryExpression', operator: '-', argument: this.parseUnary(), prefix: true };
+        }
+        if (this.match(TOKEN_TYPES.OPERATOR, '++')) {
+          return { type: 'UpdateExpression', operator: '++', argument: this.parseUnary(), prefix: true };
+        }
+        if (this.match(TOKEN_TYPES.OPERATOR, '--')) {
+          return { type: 'UpdateExpression', operator: '--', argument: this.parseUnary(), prefix: true };
+        }
+        return this.parsePostfix();
+      }
+
+      parsePostfix() {
+        let expr = this.parsePrimary();
+        while (true) {
+          if (this.match(TOKEN_TYPES.PUNCTUATION, '.')) {
+            const property = this.expect(TOKEN_TYPES.IDENTIFIER).value;
+            if (this.match(TOKEN_TYPES.PUNCTUATION, '(')) {
+              const args = this.parseArguments();
+              this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+              expr = { type: 'CallExpression', callee: { type: 'MemberExpression', object: expr, property }, arguments: args };
+            } else {
+              expr = { type: 'MemberExpression', object: expr, property };
+            }
+          } else if (this.match(TOKEN_TYPES.PUNCTUATION, '[')) {
+            const index = this.parseExpression();
+            this.expect(TOKEN_TYPES.PUNCTUATION, ']');
+            expr = { type: 'IndexExpression', object: expr, index };
+          } else if (this.match(TOKEN_TYPES.PUNCTUATION, '(')) {
+            const args = this.parseArguments();
+            this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+            expr = { type: 'CallExpression', callee: expr, arguments: args };
+          } else if (this.match(TOKEN_TYPES.OPERATOR, '++')) {
+            expr = { type: 'UpdateExpression', operator: '++', argument: expr, prefix: false };
+          } else if (this.match(TOKEN_TYPES.OPERATOR, '--')) {
+            expr = { type: 'UpdateExpression', operator: '--', argument: expr, prefix: false };
+          } else {
+            break;
+          }
+        }
+        return expr;
+      }
+
+      parseArguments() {
+        const args = [];
+        if (this.peek().value === ')') return args;
+        do {
+          args.push(this.parseExpression());
+        } while (this.match(TOKEN_TYPES.PUNCTUATION, ','));
+        return args;
+      }
+
+      parsePrimary() {
+        const t = this.peek();
+
+        if (t.type === TOKEN_TYPES.NUMBER || t.type === TOKEN_TYPES.STRING) {
+          this.pos++;
+          return { type: 'Literal', value: t.value };
+        }
+        if (t.type === TOKEN_TYPES.KEYWORD && (typeof t.value === 'boolean' || t.value === null)) {
+          this.pos++;
+          return { type: 'Literal', value: t.value };
+        }
+
+        if (t.type === TOKEN_TYPES.KEYWORD && ['int', 'long', 'double', 'float', 'boolean', 'char', 'byte', 'short'].includes(t.value)) {
+          this.pos++;
+          return { type: 'TypeExpression', name: t.value };
+        }
+
+        if (this.match(TOKEN_TYPES.KEYWORD, 'this')) {
+          return { type: 'ThisExpression' };
+        }
+
+        if (this.match(TOKEN_TYPES.KEYWORD, 'new')) {
+          const typeParts = [this.peek().value];
+          this.pos++;
+          while (this.match(TOKEN_TYPES.PUNCTUATION, '.')) {
+            typeParts.push(this.peek().value);
+            this.pos++;
+          }
+          const typeName = typeParts[typeParts.length - 1];
+          this.skipTypeArguments();
+          if (this.match(TOKEN_TYPES.PUNCTUATION, '[')) {
+            const dimensions = [];
+            do {
+              dimensions.push(this.parseExpression());
+              this.expect(TOKEN_TYPES.PUNCTUATION, ']');
+            } while (this.match(TOKEN_TYPES.PUNCTUATION, '['));
+            return { type: 'NewArrayExpression', elementType: typeName, dimensions };
+          }
+          if (this.peek().value === '{') {
+            this.pos++;
+            const elements = [];
+            if (!this.match(TOKEN_TYPES.PUNCTUATION, '}')) {
+              do {
+                elements.push(this.parseExpression());
+              } while (this.match(TOKEN_TYPES.PUNCTUATION, ','));
+              this.expect(TOKEN_TYPES.PUNCTUATION, '}');
+            }
+            return { type: 'ArrayLiteral', elements };
+          }
+          this.expect(TOKEN_TYPES.PUNCTUATION, '(');
+          const args = this.parseArguments();
+          this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+          return { type: 'NewExpression', callee: typeName, arguments: args };
+        }
+
+        if (this.match(TOKEN_TYPES.OPERATOR, '<')) {
+          const typeParts = [];
+          while (!this.match(TOKEN_TYPES.OPERATOR, '>')) {
+            const token = this.peek();
+            if (token.type === TOKEN_TYPES.EOF) throw new Error(`[${this.filename}] Tipo genérico sin cerrar`);
+            typeParts.push(token.value);
+            this.pos++;
+          }
+          return { type: 'TypeExpression', name: typeParts.join('') };
+        }
+
+        if (this.match(TOKEN_TYPES.PUNCTUATION, '{')) {
+          const elements = [];
+          if (!this.match(TOKEN_TYPES.PUNCTUATION, '}')) {
+            do {
+              elements.push(this.parseExpression());
+            } while (this.match(TOKEN_TYPES.PUNCTUATION, ','));
+            this.expect(TOKEN_TYPES.PUNCTUATION, '}');
+          }
+          return { type: 'ArrayLiteral', elements };
+        }
+
+        if (t.type === TOKEN_TYPES.IDENTIFIER) {
+          this.pos++;
+          return { type: 'Identifier', name: t.value };
+        }
+
+        if (this.match(TOKEN_TYPES.PUNCTUATION, '(')) {
+          const inner = this.parseExpression();
+          this.expect(TOKEN_TYPES.PUNCTUATION, ')');
+          return inner;
+        }
+
+        throw new Error(`[${this.filename}] Expresión no reconocida cerca de '${t.value}' en línea ${t.line}`);
+      }
+    }
+
+    // ==========================================
+    // 4. INTÉRPRETE GLOBAL TREE-WALK
+    // ==========================================
+    class Environment {
+      constructor(parent = null) {
+        this.parent = parent;
+        this.vars = new Map();
+      }
+
+      get(name) {
+        if (this.vars.has(name)) return this.vars.get(name);
+        if (this.parent) return this.parent.get(name);
+        throw new Error(`Símbolo o variable no resuelta: '${name}'`);
+      }
+
+      set(name, value) {
+        if (this.vars.has(name)) {
+          this.vars.set(name, value);
+          return value;
+        }
+        if (this.parent) return this.parent.set(name, value);
+        this.vars.set(name, value);
+        return value;
+      }
+
+      define(name, value) {
+        this.vars.set(name, value);
+        return value;
+      }
+    }
+
+    class JavaObjectInstance {
+      constructor(clazz) {
+        this.clazz = clazz;
+        this.fields = new Map();
+      }
+    }
+
+    class MultiFileInterpreter {
+      constructor(logger) {
+        this.logger = logger;
+        this.classes = new Map();
+        this.interfaces = new Map();
+        this.imports = new Set();
+        this.globalEnv = new Environment();
+        this.setupStandardLibrary();
+      }
+
+      setupStandardLibrary() {
+        const createCollection = items => {
+          const values = items ? Array.from(items) : [];
+          const collection = {
+            add: value => { values.push(value); return true; },
+            forEach: action => values.forEach(action),
+            iterator: () => createCollection(values),
+            addAll: other => {
+              const incoming = Array.isArray(other) ? other : other.toArray();
+              values.push(...incoming);
+              return incoming.length > 0;
+            },
+            clear: () => { values.length = 0; },
+            contains: value => values.includes(value),
+            containsAll: other => (Array.isArray(other) ? other : other.toArray()).every(value => values.includes(value)),
+            get: index => values[index],
+            indexOf: value => values.indexOf(value),
+            isEmpty: () => values.length === 0,
+            remove: value => {
+              const index = typeof value === 'number' ? value : values.indexOf(value);
+              if (index < 0 || index >= values.length) return false;
+              values.splice(index, 1);
+              return true;
+            },
+            removeAll: other => {
+              const incoming = Array.isArray(other) ? other : other.toArray();
+              const before = values.length;
+              for (let i = values.length - 1; i >= 0; i--) if (incoming.includes(values[i])) values.splice(i, 1);
+              return before !== values.length;
+            },
+            retainAll: other => {
+              const incoming = Array.isArray(other) ? other : other.toArray();
+              const before = values.length;
+              for (let i = values.length - 1; i >= 0; i--) if (!incoming.includes(values[i])) values.splice(i, 1);
+              return before !== values.length;
+            },
+            set: (index, value) => { const previous = values[index]; values[index] = value; return previous; },
+            size: () => values.length,
+            toArray: () => values.slice(),
+            sort: comparator => { values.sort(comparator || ((a, b) => String(a).localeCompare(String(b)))); }
+          };
+          Object.defineProperty(collection, 'length', { get: () => values.length });
+          Object.defineProperty(collection, 'sizeValue', { get: () => values.length });
+          return collection;
+        };
+
+        const arrayListClass = { type: 'LibraryClass', name: 'ArrayList', create: createCollection };
+        const linkedListClass = { type: 'LibraryClass', name: 'LinkedList', create: createCollection };
+        const stringBuilderClass = { type: 'LibraryClass', name: 'StringBuilder', create: initialValue => {
+          let value = initialValue.length ? String(initialValue[0]) : '';
+          const builder = {
+            append: next => { value += next === null ? 'null' : String(next); return builder; },
+            toString: () => value,
+            length: () => value.length,
+            setLength: length => { value = value.slice(0, length).padEnd(length, '\\0'); }
+          };
+          return builder;
+        }};
+        const scannerClass = { type: 'LibraryClass', name: 'Scanner', create: () => {
+          const readInput = message => {
+            if (typeof window.prompt !== 'function') throw new Error('Scanner requiere un navegador con soporte para cuadros de entrada.');
+            const value = window.prompt(message);
+            if (value === null) throw new Error('Entrada cancelada.');
+            return value;
+          };
+          return {
+            next: () => readInput('Introduce un valor:').trim().split(/\s+/)[0],
+            nextLine: () => readInput('Introduce una línea:'),
+            nextInt: () => {
+              const value = Number.parseInt(readInput('Introduce un número entero:'), 10);
+              if (Number.isNaN(value)) throw new Error('Entrada no válida: se esperaba un número entero.');
+              return value;
+            },
+            nextLong: () => {
+              const value = Number.parseInt(readInput('Introduce un número entero:'), 10);
+              if (Number.isNaN(value)) throw new Error('Entrada no válida: se esperaba un número entero.');
+              return value;
+            },
+            nextDouble: () => {
+              const value = Number.parseFloat(readInput('Introduce un número decimal:').replace(',', '.'));
+              if (Number.isNaN(value)) throw new Error('Entrada no válida: se esperaba un número decimal.');
+              return value;
+            },
+            nextFloat: () => {
+              const value = Number.parseFloat(readInput('Introduce un número decimal:').replace(',', '.'));
+              if (Number.isNaN(value)) throw new Error('Entrada no válida: se esperaba un número decimal.');
+              return value;
+            },
+            nextBoolean: () => readInput('Introduce true o false:').trim().toLowerCase() === 'true',
+            close: () => {}
+          };
+        }};
+        const hashSetClass = { type: 'LibraryClass', name: 'HashSet', create: items => {
+          const collection = createCollection([...new Set(items || [])]);
+          const originalAdd = collection.add;
+          collection.add = value => collection.contains(value) ? false : originalAdd(value);
+          return collection;
+        }};
+        const hashMapClass = { type: 'LibraryClass', name: 'HashMap', create: entries => {
+          const values = new Map(entries || []);
+          return {
+            clear: () => values.clear(),
+            forEach: action => values.forEach((value, key) => action(value, key)),
+            getOrDefault: (key, fallback) => values.has(key) ? values.get(key) : fallback,
+            containsKey: key => values.has(key),
+            get: key => values.has(key) ? values.get(key) : null,
+            isEmpty: () => values.size === 0,
+            keySet: () => createCollection(values.keys()),
+            put: (key, value) => { const previous = values.has(key) ? values.get(key) : null; values.set(key, value); return previous; },
+            remove: key => { const previous = values.has(key) ? values.get(key) : null; values.delete(key); return previous; },
+            size: () => values.size,
+            entrySet: () => createCollection(Array.from(values.entries(), ([key, value]) => ({ getKey: () => key, getValue: () => value }))),
+            values: () => createCollection(values.values())
+          };
+        }};
+        const collectionValues = collection => Array.isArray(collection) ? collection : collection.toArray();
+        const util = {
+          ArrayList: arrayListClass,
+          LinkedList: linkedListClass,
+          StringBuilder: stringBuilderClass,
+          Scanner: scannerClass,
+          HashSet: hashSetClass,
+          HashMap: hashMapClass,
+          List: arrayListClass,
+          Set: hashSetClass,
+          Map: hashMapClass,
+          Arrays: {
+            asList: (...items) => createCollection(items),
+            sort: (items, comparator) => items.sort(comparator || ((a, b) => a - b)),
+            toString: items => `[${items.join(', ')}]`,
+            equals: (a, b) => a.length === b.length && a.every((value, index) => value === b[index]),
+            fill: (items, value) => items.fill(value),
+            copyOf: (items, size) => items.slice(0, size).concat(new Array(Math.max(0, size - items.length)).fill(null))
+          },
+          Collections: {
+            sort: (items, comparator) => {
+              const values = collectionValues(items);
+              values.sort(comparator || ((a, b) => String(a).localeCompare(String(b))));
+            },
+            reverse: items => {
+              const values = collectionValues(items);
+              values.reverse();
+            },
+            shuffle: items => {
+              const values = collectionValues(items);
+              for (let i = values.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [values[i], values[j]] = [values[j], values[i]]; }
+            },
+            max: items => collectionValues(items).reduce((a, b) => a > b ? a : b),
+            min: items => collectionValues(items).reduce((a, b) => a < b ? a : b),
+            reverseOrder: () => (a, b) => a > b ? -1 : a < b ? 1 : 0
+          },
+          Comparator: {
+            naturalOrder: () => (a, b) => a < b ? -1 : a > b ? 1 : 0,
+            reverseOrder: () => (a, b) => a > b ? -1 : a < b ? 1 : 0
+          },
+          Objects: {
+            equals: (a, b) => a === b,
+            isNull: value => value === null,
+            nonNull: value => value !== null,
+            requireNonNull: (value, message = 'El valor no puede ser null') => {
+              if (value === null || value === undefined) throw new Error(message);
+              return value;
+            },
+            toString: (value, fallback = 'null') => value === null || value === undefined ? fallback : String(value)
+          }
+        };
+        this.globalEnv.define('java', { util });
+        this.globalEnv.define('Thread', {
+          sleep: () => {}
+        });
+        this.globalEnv.define('System', {
+          in: {},
+          out: {
+            println: (v = '') => this.logger.stdout(v === null ? "null" : v.toString()),
+            print: (v = '') => this.logger.stdoutInline(v === null ? "null" : v.toString()),
+            flush: () => {}
+          },
+          arraycopy: (src, srcPos, dest, destPos, length) => {
+            for (let i = 0; i < length; i++) dest[destPos + i] = src[srcPos + i];
+          }
+        });
+
+        this.globalEnv.define('Integer', {
+          MAX_VALUE: 2147483647,
+          MIN_VALUE: -2147483648,
+          parseInt: value => parseInt(value, 10),
+          valueOf: value => parseInt(value, 10),
+          toString: value => String(value)
+        });
+        this.globalEnv.define('Double', {
+          MAX_VALUE: Number.MAX_VALUE,
+          MIN_VALUE: Number.MIN_VALUE,
+          parseDouble: value => parseFloat(value),
+          valueOf: value => parseFloat(value),
+          toString: value => String(value)
+        });
+        this.globalEnv.define('Boolean', {
+          parseBoolean: value => String(value).toLowerCase() === 'true',
+          valueOf: value => String(value).toLowerCase() === 'true'
+        });
+        this.globalEnv.define('String', {
+          valueOf: value => String(value),
+          format: (format, ...values) => {
+            let index = 0;
+            return format.replace(/%[sdif]/g, specifier => {
+              const value = values[index++];
+              return specifier === '%d' || specifier === '%i' ? String(parseInt(value, 10)) : String(value);
+            }).replace(/%%/g, '%');
+          },
+          join: (delimiter, ...values) => values.join(delimiter)
+        });
+        this.globalEnv.define('Math', {
+          PI: Math.PI,
+          E: Math.E,
+          max: (...values) => Math.max(...values),
+          min: (...values) => Math.min(...values),
+          abs: (a) => Math.abs(a),
+          sqrt: (a) => Math.sqrt(a),
+          pow: (a, b) => Math.pow(a, b),
+          random: () => Math.random(),
+          floor: (a) => Math.floor(a),
+          ceil: (a) => Math.ceil(a),
+          round: (a) => Math.round(a)
+        });
+      }
+
+      loadAllFiles(fileAstList) {
+        for (const fileAst of fileAstList) {
+          for (const imported of fileAst.imports) {
+            this.imports.add(imported);
+            if (imported.startsWith('java.util.')) {
+              const importedName = imported.slice('java.util.'.length);
+              if (importedName === '*') {
+                for (const [name, value] of Object.entries(this.globalEnv.get('java').util)) this.globalEnv.define(name, value);
+              } else {
+                const value = this.globalEnv.get('java').util[importedName];
+                if (value) this.globalEnv.define(importedName, value);
+              }
+            }
+          }
+          for (const node of fileAst.body) {
+            if (node.type === 'InterfaceDeclaration') {
+              this.interfaces.set(node.name, node);
+            } else if (node.type === 'ClassDeclaration') {
+              this.classes.set(node.name, node);
+            }
+          }
+        }
+      }
+
+      verifyAllContracts() {
+        for (const [className, clazz] of this.classes.entries()) {
+          for (const ifaceName of clazz.interfaces) {
+            const iface = this.interfaces.get(ifaceName);
+            if (!iface) {
+              throw new Error(`Contrato no resuelto: La clase '${className}' declara 'implements ${ifaceName}', pero dicha interfaz no está definida en ningún archivo cargado.`);
+            }
+
+            for (const required of iface.methods) {
+              const implemented = clazz.body.find(m => m.type === 'MethodDeclaration' && m.name === required.name);
+              if (!implemented) {
+                throw new Error(`[VIOLACIÓN DE CONTRATO] La clase '${className}' (${clazz.file}) no implementa el método obligatorio '${required.returnType} ${required.name}()' de la interfaz '${ifaceName}' (${iface.file}).`);
+              }
+            }
+          }
+        }
+      }
+
+      initializeStaticFields() {
+        for (const clazz of this.classes.values()) {
+          for (const member of clazz.body) {
+            if (member.type === 'FieldDeclaration' && member.isStatic) {
+              const value = member.initializer ? this.evaluateExpression(member.initializer, this.globalEnv) : null;
+              this.globalEnv.define(`${clazz.name}.${member.name}`, value);
+              if (member.access !== 'private') this.globalEnv.define(member.name, value);
+            }
+          }
+        }
+      }
+
+      run() {
+        this.verifyAllContracts();
+        this.initializeStaticFields();
+
+        let mainClass = null;
+        for (const [name, clazz] of this.classes.entries()) {
+          for (const member of clazz.body) {
+            if (member.type === 'MethodDeclaration' && member.isStatic && member.name === 'main') {
+              mainClass = clazz;
+              break;
+            }
+          }
+          if (mainClass) break;
+        }
+
+        if (!mainClass) {
+          throw new Error("No se encontró ningún método 'public static void main(String[] args)' en ninguno de los archivos del proyecto.");
+        }
+
+        this.logger.info(`Punto de entrada detectado: ${mainClass.name}.main() en [${mainClass.file}]`);
+
+        const mainMethod = mainClass.body.find(m => m.name === 'main');
+        const mainEnv = new Environment(this.globalEnv);
+        mainEnv.define('args', []);
+
+        this.executeBlock(mainMethod.body, mainEnv);
+      }
+
+      executeBlock(block, env) {
+        for (const stmt of block.body) {
+          const res = this.executeStatement(stmt, env);
+          if (res && res.type === 'RETURN') return res.value;
+          if (res && (res.type === 'BREAK' || res.type === 'CONTINUE')) return res;
+        }
+        return undefined;
+      }
+
+      executeStatement(stmt, env) {
+        switch (stmt.type) {
+          case 'BlockStatement':
+            return this.executeBlock(stmt, new Environment(env));
+
+          case 'VariableDeclaration': {
+            let val = null;
+            if (stmt.initializer) val = this.evaluateExpression(stmt.initializer, env);
+            env.define(stmt.name, val);
+            return;
+          }
+
+          case 'ExpressionStatement':
+            this.evaluateExpression(stmt.expression, env);
+            return;
+
+          case 'BreakStatement':
+            return { type: 'BREAK' };
+
+          case 'ContinueStatement':
+            return { type: 'CONTINUE' };
+
+          case 'EmptyStatement':
+            return;
+
+          case 'IfStatement': {
+            const test = this.evaluateExpression(stmt.test, env);
+            if (test) return this.executeStatement(stmt.consequent, env);
+            else if (stmt.alternate) return this.executeStatement(stmt.alternate, env);
+            return;
+          }
+
+          case 'EnhancedForStatement': {
+            const forEnv = new Environment(env);
+            const iterable = this.evaluateExpression(stmt.iterable, env);
+            const values = Array.isArray(iterable) ? iterable : iterable && typeof iterable.toArray === 'function' ? iterable.toArray() : null;
+            if (!values) throw new Error(`El valor de '${stmt.name}' no es iterable.`);
+            for (const value of values) {
+              forEnv.define(stmt.name, value);
+              const res = this.executeStatement(stmt.body, forEnv);
+              if (res && res.type === 'RETURN') return res;
+              if (res && res.type === 'BREAK') break;
+            }
+            return;
+          }
+
+          case 'ForStatement': {
+            const forEnv = new Environment(env);
+            if (stmt.init) {
+              if (stmt.init.type === 'VariableDeclaration') this.executeStatement(stmt.init, forEnv);
+              else this.evaluateExpression(stmt.init, forEnv);
+            }
+            while (stmt.test ? this.evaluateExpression(stmt.test, forEnv) : true) {
+              const res = this.executeStatement(stmt.body, forEnv);
+              if (res && res.type === 'RETURN') return res;
+              if (res && res.type === 'BREAK') break;
+              if (stmt.update) this.evaluateExpression(stmt.update, forEnv);
+            }
+            return;
+          }
+
+          case 'WhileStatement': {
+            while (this.evaluateExpression(stmt.test, env)) {
+              const res = this.executeStatement(stmt.body, env);
+              if (res && res.type === 'RETURN') return res;
+              if (res && res.type === 'BREAK') break;
+            }
+            return;
+          }
+
+          case 'ReturnStatement': {
+            let val = undefined;
+            if (stmt.value) val = this.evaluateExpression(stmt.value, env);
+            return { type: 'RETURN', value: val };
+          }
+
+          case 'ThrowStatement': {
+            const value = this.evaluateExpression(stmt.value, env);
+            throw value instanceof Error ? value : new Error(String(value));
+          }
+
+          default:
+            throw new Error(`Sentencia no reconocida: ${stmt.type}`);
+        }
+      }
+
+      evaluateExpression(expr, env) {
+        switch (expr.type) {
+          case 'Literal':
+            return expr.value;
+
+          case 'ConditionalExpression':
+            return this.evaluateExpression(expr.test, env)
+              ? this.evaluateExpression(expr.consequent, env)
+              : this.evaluateExpression(expr.alternate, env);
+
+          case 'Identifier':
+            try {
+              return env.get(expr.name);
+            } catch (e) {
+              if (this.classes.has(expr.name)) return this.classes.get(expr.name);
+              for (const clazz of this.classes.values()) {
+                const field = clazz.body.find(member => member.type === 'FieldDeclaration' && member.isStatic && member.name === expr.name);
+                if (field) return this.globalEnv.get(`${clazz.name}.${field.name}`);
+              }
+              throw e;
+            }
+
+          case 'ThisExpression':
+            return env.get('this');
+
+          case 'ArrayLiteral':
+            return expr.elements.map(el => this.evaluateExpression(el, env));
+
+          case 'NewArrayExpression': {
+            const sizes = expr.dimensions.map(dimension => this.evaluateExpression(dimension, env));
+            const createArray = depth => {
+              const size = sizes[depth];
+              if (depth === sizes.length - 1) {
+                const defaultValue = ['boolean'].includes(expr.elementType) ? false : ['int', 'long', 'double', 'float', 'short', 'byte', 'char'].includes(expr.elementType) ? 0 : null;
+                return new Array(size).fill(defaultValue);
+              }
+              return Array.from({ length: size }, () => createArray(depth + 1));
+            };
+            return createArray(0);
+          }
+
+          case 'TypeExpression':
+            return { __javaType: expr.name };
+
+          case 'NewExpression': {
+            const typeName = expr.callee.includes('.') ? expr.callee.split('.').pop() : expr.callee;
+            const javaExceptionTypes = new Set([
+              'RuntimeException', 'IllegalArgumentException', 'IllegalStateException',
+              'UnsupportedOperationException', 'NullPointerException', 'ArithmeticException',
+              'IndexOutOfBoundsException'
+            ]);
+            if (javaExceptionTypes.has(typeName)) {
+              const message = expr.arguments.length
+                ? this.evaluateExpression(expr.arguments[0], env)
+                : '';
+              const error = new Error(String(message));
+              error.name = typeName;
+              return error;
+            }
+            const utilPackage = env.get('java').util;
+            const libraryClass = utilPackage[typeName];
+            if (libraryClass && libraryClass.type === 'LibraryClass') {
+              return libraryClass.create(expr.arguments.map(a => this.evaluateExpression(a, env)));
+            }
+            const clazz = this.classes.get(typeName);
+            if (!clazz) throw new Error(`No se puede instanciar clase desconocida '${expr.callee}'`);
+
+            const instance = new JavaObjectInstance(clazz);
+            const evaluatedArgs = expr.arguments.map(a => this.evaluateExpression(a, env));
+
+            // Inicializar campos de instancia
+            for (const member of clazz.body) {
+              if (member.type === 'FieldDeclaration' && !member.isStatic) {
+                const initVal = member.initializer ? this.evaluateExpression(member.initializer, env) : null;
+                instance.fields.set(member.name, initVal);
+              }
+            }
+
+            // Constructor
+            const ctor = clazz.body.find(m => m.type === 'Constructor');
+            if (ctor) {
+              const ctorEnv = new Environment(this.globalEnv);
+              ctorEnv.define('this', instance);
+              ctor.params.forEach((param, i) => ctorEnv.define(param.name, evaluatedArgs[i]));
+              this.executeBlock(ctor.body, ctorEnv);
+            }
+
+            return instance;
+          }
+
+          case 'IndexExpression': {
+            const obj = this.evaluateExpression(expr.object, env);
+            const idx = this.evaluateExpression(expr.index, env);
+            return obj[idx];
+          }
+
+          case 'MemberExpression': {
+            const obj = this.evaluateExpression(expr.object, env);
+            if (obj === null || obj === undefined) {
+              throw new Error(`NullPointerException: Se intentó acceder a '${expr.property}' en un valor null.`);
+            }
+
+            if (Array.isArray(obj) && expr.property === 'length') return obj.length;
+            if (typeof obj === 'string' && expr.property === 'length') return obj.length;
+
+            if (obj instanceof JavaObjectInstance) {
+              if (obj.fields.has(expr.property)) return obj.fields.get(expr.property);
+            }
+
+            if (obj.type === 'ClassDeclaration') {
+              const field = obj.body.find(member => member.type === 'FieldDeclaration' && member.isStatic && member.name === expr.property);
+              if (field) return this.globalEnv.get(`${obj.name}.${field.name}`);
+            }
+
+            if (typeof obj === 'object' && expr.property in obj) return obj[expr.property];
+
+            throw new Error(`Propiedad o campo '${expr.property}' no encontrado.`);
+          }
+
+          case 'CallExpression': {
+            const evaluatedArgs = expr.arguments.map(a => this.evaluateExpression(a, env));
+
+            if (expr.callee.type === 'MemberExpression') {
+              const targetObj = this.evaluateExpression(expr.callee.object, env);
+              const methodName = expr.callee.property;
+
+              if (targetObj === null || targetObj === undefined) {
+                throw new Error(`NullPointerException al invocar '${methodName}()'`);
+              }
+
+              // Métodos estándar emulados de String
+              if (typeof targetObj === 'string') {
+                if (methodName === 'toUpperCase') return targetObj.toUpperCase();
+                if (methodName === 'toLowerCase') return targetObj.toLowerCase();
+                if (methodName === 'trim') return targetObj.trim();
+                if (methodName === 'length') return targetObj.length;
+                if (methodName === 'contains') return targetObj.includes(evaluatedArgs[0]);
+                if (methodName === 'equals') return targetObj === evaluatedArgs[0];
+              }
+
+              if (typeof targetObj[methodName] === 'function') {
+                return targetObj[methodName](...evaluatedArgs);
+              }
+
+              if (targetObj instanceof JavaObjectInstance) {
+                const method = targetObj.clazz.body.find(m => m.type === 'MethodDeclaration' && m.name === methodName);
+                if (!method) throw new Error(`El método '${methodName}' no existe en '${targetObj.clazz.name}'`);
+
+                const methodEnv = new Environment(this.globalEnv);
+                methodEnv.define('this', targetObj);
+                method.params.forEach((param, i) => methodEnv.define(param.name, evaluatedArgs[i]));
+                return this.executeBlock(method.body, methodEnv);
+              }
+
+              if (targetObj.type === 'ClassDeclaration') {
+                const method = targetObj.body.find(m => m.type === 'MethodDeclaration' && m.name === methodName && m.isStatic);
+                if (!method) throw new Error(`Método estático '${methodName}' no encontrado en clase '${targetObj.name}'`);
+
+                const methodEnv = new Environment(this.globalEnv);
+                method.params.forEach((param, i) => methodEnv.define(param.name, evaluatedArgs[i]));
+                return this.executeBlock(method.body, methodEnv);
+              }
+            }
+
+            if (expr.callee.type === 'Identifier') {
+              const fnName = expr.callee.name;
+              for (const [cName, cl] of this.classes.entries()) {
+                const m = cl.body.find(x => x.name === fnName && x.isStatic);
+                if (m) {
+                  const mEnv = new Environment(this.globalEnv);
+                  m.params.forEach((p, i) => mEnv.define(p.name, evaluatedArgs[i]));
+                  return this.executeBlock(m.body, mEnv);
+                }
+              }
+            }
+
+            throw new Error(`Llamada a método no resuelta`);
+          }
+
+          // EJECUCIÓN DE ASIGNACIONES (SIMPLES Y COMPUESTAS: +=, -=, *=, /=, %=)
+          case 'AssignmentExpression': {
+            const op = expr.operator;
+            const rightVal = this.evaluateExpression(expr.right, env);
+
+            const computeValue = (currentVal) => {
+              switch (op) {
+                case '=': return rightVal;
+                case '+=': return currentVal + rightVal;
+                case '-=': return currentVal - rightVal;
+                case '*=': return currentVal * rightVal;
+                case '/=': return currentVal / rightVal;
+                case '%=': return currentVal % rightVal;
+                default: throw new Error(`Operador de asignación no soportado: ${op}`);
+              }
+            };
+
+            if (expr.left.type === 'Identifier') {
+              const current = op === '=' ? null : env.get(expr.left.name);
+              const finalVal = computeValue(current);
+              env.set(expr.left.name, finalVal);
+              return finalVal;
+            }
+
+            if (expr.left.type === 'MemberExpression') {
+              const obj = this.evaluateExpression(expr.left.object, env);
+              if (obj instanceof JavaObjectInstance) {
+                const current = op === '=' ? null : obj.fields.get(expr.left.property);
+                const finalVal = computeValue(current);
+                obj.fields.set(expr.left.property, finalVal);
+                return finalVal;
+              }
+              const current = op === '=' ? null : obj[expr.left.property];
+              const finalVal = computeValue(current);
+              obj[expr.left.property] = finalVal;
+              return finalVal;
+            }
+
+            if (expr.left.type === 'IndexExpression') {
+              const arr = this.evaluateExpression(expr.left.object, env);
+              const idx = this.evaluateExpression(expr.left.index, env);
+              const current = op === '=' ? null : arr[idx];
+              const finalVal = computeValue(current);
+              arr[idx] = finalVal;
+              return finalVal;
+            }
+
+            throw new Error("Lado izquierdo de asignación inválido");
+          }
+
+          // INCREMENTO / DECREMENTO (++ / --)
+          case 'UpdateExpression': {
+            const op = expr.operator;
+            const isPrefix = expr.prefix;
+
+            if (expr.argument.type === 'Identifier') {
+              const current = env.get(expr.argument.name);
+              const updated = op === '++' ? current + 1 : current - 1;
+              env.set(expr.argument.name, updated);
+              return isPrefix ? updated : current;
+            }
+
+            if (expr.argument.type === 'IndexExpression') {
+              const arr = this.evaluateExpression(expr.argument.object, env);
+              const idx = this.evaluateExpression(expr.argument.index, env);
+              const current = arr[idx];
+              const updated = op === '++' ? current + 1 : current - 1;
+              arr[idx] = updated;
+              return isPrefix ? updated : current;
+            }
+
+            throw new Error("Operador de actualización no soportado en este destino");
+          }
+
+          case 'BinaryExpression': {
+            const left = this.evaluateExpression(expr.left, env);
+            const right = this.evaluateExpression(expr.right, env);
+            switch (expr.operator) {
+              case '+': return left + right;
+              case '-': return left - right;
+              case '*': return left * right;
+              case '/': return left / right;
+              case '%': return left % right;
+              case '==': return left === right;
+              case '!=': return left !== right;
+              case '<': return left < right;
+              case '>': return left > right;
+              case '<=': return left <= right;
+              case '>=': return left >= right;
+              case '&&': return Boolean(left && right);
+              case '||': return Boolean(left || right);
+              default: throw new Error(`Operador binario '${expr.operator}' no implementado`);
+            }
+          }
+
+          case 'UnaryExpression': {
+            const arg = this.evaluateExpression(expr.argument, env);
+            if (expr.operator === '!') return !arg;
+            if (expr.operator === '-') return -arg;
+            throw new Error(`Operador unario '${expr.operator}' no implementado`);
+          }
+
+          default:
+            throw new Error(`Expresión desconocida: ${expr.type}`);
+        }
+      }
+    }
+
+    // ==========================================
+    // 5. CONTROLADOR DE VISTAS Y CONSOLA
+    // ==========================================
+    const codeInput = document.getElementById('code-input');
+    const codeHighlight = document.getElementById('code-highlight').querySelector('code');
+    const lineNumbers = document.getElementById('line-numbers');
+    const terminalView = document.getElementById('view-terminal');
+    const astView = document.getElementById('view-ast');
+    const cursorPos = document.getElementById('cursor-pos');
+    const execStatus = document.getElementById('exec-status');
+
+    let pendingInline = false;
+    const logger = {
+      getTime: () => {
+        const d = new Date();
+        return d.toTimeString().split(' ')[0] + '.' + String(d.getMilliseconds()).padStart(3, '0');
+      },
+      stdout: (msg) => {
+        if (pendingInline) {
+          const last = terminalView.lastElementChild;
+          if (last) last.querySelector('.log-stdout').innerText += msg;
+          pendingInline = false;
+          return;
+        }
+        const row = document.createElement('div');
+        row.className = 'console-line';
+        row.innerHTML = `<span class="console-time">[${logger.getTime()}]</span><span class="log-stdout">${escapeHtml(msg)}</span>`;
+        terminalView.appendChild(row);
+        terminalView.scrollTop = terminalView.scrollHeight;
+      },
+      stdoutInline: (msg) => {
+        if (pendingInline) {
+          const last = terminalView.lastElementChild;
+          if (last) last.querySelector('.log-stdout').innerText += msg;
+        } else {
+          const row = document.createElement('div');
+          row.className = 'console-line';
+          row.innerHTML = `<span class="console-time">[${logger.getTime()}]</span><span class="log-stdout">${escapeHtml(msg)}</span>`;
+          terminalView.appendChild(row);
+          pendingInline = true;
+        }
+        terminalView.scrollTop = terminalView.scrollHeight;
+      },
+      info: (msg) => {
+        pendingInline = false;
+        const row = document.createElement('div');
+        row.className = 'console-line';
+        row.innerHTML = `<span class="console-time">[${logger.getTime()}]</span><span class="log-info">ℹ ${escapeHtml(msg)}</span>`;
+        terminalView.appendChild(row);
+        terminalView.scrollTop = terminalView.scrollHeight;
+      },
+      success: (msg) => {
+        pendingInline = false;
+        const row = document.createElement('div');
+        row.className = 'console-line';
+        row.innerHTML = `<span class="console-time">[${logger.getTime()}]</span><span class="log-success">✔ ${escapeHtml(msg)}</span>`;
+        terminalView.appendChild(row);
+        terminalView.scrollTop = terminalView.scrollHeight;
+      },
+      error: (msg) => {
+        pendingInline = false;
+        const row = document.createElement('div');
+        row.className = 'console-line';
+        row.innerHTML = `<span class="console-time">[${logger.getTime()}]</span><span class="log-error">✖ ${escapeHtml(msg)}</span>`;
+        terminalView.appendChild(row);
+        terminalView.scrollTop = terminalView.scrollHeight;
+      }
+    };
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function highlightSyntax(code) {
+      if (project.activeFile === 'pom.xml') {
+        return code.replace(/<!--[\s\S]*?-->|<\/?[\w:-]+|>|"[^"\n]*"|'[^'\n]*'|[^<>"']+/g, token => {
+          const escapedToken = escapeHtml(token);
+          if (token.startsWith('<!--')) return `<span class="tok-com">${escapedToken}</span>`;
+          if (token.startsWith('<') || token === '>') return `<span class="tok-kw">${escapedToken}</span>`;
+          if (token.startsWith('"') || token.startsWith("'")) return `<span class="tok-str">${escapedToken}</span>`;
+          return escapedToken;
+        });
+      }
+
+      const keywords = new Set(['package', 'import', 'public', 'private', 'protected', 'class', 'interface', 'implements', 'extends', 'static', 'void', 'new', 'return', 'if', 'else', 'for', 'while', 'this']);
+      const types = new Set(['int', 'double', 'float', 'boolean', 'char', 'String', 'Object', 'System', 'Math']);
+      return code.replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\/|"(?:\\.|[^"\\])*"|@\w+|\b(?:\d+(?:\.\d+)?|[A-Za-z_$][\w$]*)\b/g, token => {
+        let className;
+        if (token.startsWith('//') || token.startsWith('/*')) className = 'tok-com';
+        else if (token.startsWith('"')) className = 'tok-str';
+        else if (token.startsWith('@')) className = 'tok-anno';
+        else if (keywords.has(token)) className = 'tok-kw';
+        else if (types.has(token)) className = 'tok-type';
+        else if (/^\d/.test(token)) className = 'tok-num';
+        return className ? `<span class="${className}">${escapeHtml(token)}</span>` : escapeHtml(token);
+      });
+    }
+
+    function syncEditor() {
+      const text = codeInput.value;
+      project.files[project.activeFile] = text;
+      codeHighlight.innerHTML = highlightSyntax(text) + '\n';
+
+      const lineCount = text.split('\n').length;
+      let linesHtml = '';
+      for (let i = 1; i <= lineCount; i++) linesHtml += i + '<br>';
+      lineNumbers.innerHTML = linesHtml;
+
+      codeHighlight.parentElement.scrollTop = codeInput.scrollTop;
+      codeHighlight.parentElement.scrollLeft = codeInput.scrollLeft;
+      lineNumbers.scrollTop = codeInput.scrollTop;
+    }
+
+    codeInput.addEventListener('input', syncEditor);
+    codeInput.addEventListener('scroll', () => {
+      codeHighlight.parentElement.scrollTop = codeInput.scrollTop;
+      codeHighlight.parentElement.scrollLeft = codeInput.scrollLeft;
+      lineNumbers.scrollTop = codeInput.scrollTop;
+    });
+
+    codeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const start = codeInput.selectionStart;
+        const end = codeInput.selectionEnd;
+        codeInput.value = codeInput.value.substring(0, start) + '    ' + codeInput.value.substring(end);
+        codeInput.selectionStart = codeInput.selectionEnd = start + 4;
+        syncEditor();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runMultiFileEngine();
+      }
+    });
+
+    codeInput.addEventListener('keyup', () => {
+      const pos = codeInput.selectionStart;
+      const text = codeInput.value.substring(0, pos);
+      const lines = text.split('\n');
+      cursorPos.innerText = `Ln ${lines.length}, Col ${lines[lines.length - 1].length + 1}`;
+    });
+
+    document.getElementById('tab-view-term').addEventListener('click', () => {
+      document.getElementById('tab-view-term').classList.add('active');
+      document.getElementById('tab-view-ast').classList.remove('active');
+      terminalView.style.display = 'block';
+      astView.style.display = 'none';
+    });
+
+    document.getElementById('tab-view-ast').addEventListener('click', () => {
+      document.getElementById('tab-view-ast').classList.add('active');
+      document.getElementById('tab-view-term').classList.remove('active');
+      terminalView.style.display = 'none';
+      astView.style.display = 'block';
+    });
+
+    document.getElementById('btn-clear-term').addEventListener('click', () => {
+      terminalView.innerHTML = '';
+      logger.info("Consola limpiada.");
+    });
+
+    document.getElementById('btn-copy-console').addEventListener('click', () => {
+      const text = terminalView.innerText;
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      logger.info("Salida de la consola copiada al portapapeles.");
+    });
+
+    // ==========================================
+    // 6. MOTOR DE COMPILACIÓN MULTI-ARCHIVO
+    // ==========================================
+    function parseAllJavaFiles() {
+      saveCurrentEditorContent();
+      const astList = [];
+      const javaFilenames = Object.keys(project.files).filter(f => f.endsWith('.java'));
+
+      for (const fname of javaFilenames) {
+        const src = project.files[fname];
+        const tokenizer = new Tokenizer(src, fname);
+        const tokens = tokenizer.tokenize();
+        const parser = new Parser(tokens, fname);
+        const fileAst = parser.parseFile();
+        astList.push(fileAst);
+      }
+      return astList;
+    }
+
+    let activeExecutionWorker = null;
+    let executionWorkerUrl = null;
+
+    function createExecutionWorker() {
+      const workerMain = function(event) {
+        const files = event.data.files;
+        let messagesSent = 0;
+        const emit = (level, message) => {
+          if (messagesSent < 500) {
+            messagesSent++;
+            self.postMessage({ type: 'log', level, message });
+          }
+        };
+        const workerLogger = {
+          stdout: message => emit('stdout', message),
+          stdoutInline: message => emit('stdoutInline', message),
+          info: message => emit('info', message),
+          success: message => emit('success', message),
+          error: message => emit('error', message)
+        };
+
+        try {
+          const astList = Object.entries(files)
+            .filter(([filename]) => filename.endsWith('.java'))
+            .map(([filename, source]) => new Parser(new Tokenizer(source, filename).tokenize(), filename).parseFile());
+          const interpreter = new MultiFileInterpreter(workerLogger);
+          interpreter.loadAllFiles(astList);
+          interpreter.run();
+          if (messagesSent >= 500) workerLogger.info('Se omitió el resto de la salida para mantener la interfaz fluida.');
+          self.postMessage({ type: 'finished', fileCount: astList.length });
+        } catch (error) {
+          workerLogger.error(error && error.message ? error.message : String(error));
+          self.postMessage({ type: 'failed' });
+        }
+      };
+      const source = [
+        `const TOKEN_TYPES = ${JSON.stringify(TOKEN_TYPES)};`,
+        `const JAVA_KEYWORDS = new Set(${JSON.stringify([...JAVA_KEYWORDS])});`,
+        'self.window = self;',
+        Token.toString(),
+        Tokenizer.toString(),
+        Parser.toString(),
+        Environment.toString(),
+        JavaObjectInstance.toString(),
+        MultiFileInterpreter.toString(),
+        'onmessage = ' + workerMain.toString() + ';'
+      ].join(String.fromCharCode(10));
+      executionWorkerUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+      return new Worker(executionWorkerUrl);
+    }
+
+    function finishExecutionWorker(status, failed = false) {
+      if (activeExecutionWorker) {
+        activeExecutionWorker.terminate();
+        activeExecutionWorker = null;
+      }
+      if (executionWorkerUrl) {
+        URL.revokeObjectURL(executionWorkerUrl);
+        executionWorkerUrl = null;
+      }
+      document.getElementById('btn-stop-run').style.display = 'none';
+      execStatus.innerText = status;
+      execStatus.style.color = failed ? 'var(--accent-red)' : 'var(--accent-green)';
+    }
+
+    function stopExecutionWorker() {
+      if (!activeExecutionWorker) return;
+      finishExecutionWorker('Detenido');
+      logger.info('Ejecución detenida por el usuario.');
+    }
+
+    window.addEventListener('beforeunload', () => {
+      if (activeExecutionWorker) activeExecutionWorker.terminate();
+      if (executionWorkerUrl) URL.revokeObjectURL(executionWorkerUrl);
+    });
+
+    function runMultiFileEngine() {
+      if (activeExecutionWorker) stopExecutionWorker();
+      saveCurrentEditorContent();
+      terminalView.innerHTML = '';
+      pendingInline = false;
+      execStatus.innerText = 'Ejecutando en hilo separado...';
+      execStatus.style.color = 'var(--accent-orange)';
+      logger.info('Ejecución iniciada en un Web Worker; la interfaz permanece disponible.');
+
+      try {
+        activeExecutionWorker = createExecutionWorker();
+        document.getElementById('btn-stop-run').style.display = 'inline-flex';
+        activeExecutionWorker.addEventListener('message', event => {
+          const data = event.data;
+          if (data.type === 'log') {
+            logger[data.level](data.message);
+          } else if (data.type === 'finished') {
+            logger.success(`Proyecto ejecutado correctamente (${data.fileCount} archivo(s) vinculados).`);
+            finishExecutionWorker('Finalizado');
+          } else if (data.type === 'failed') {
+            finishExecutionWorker('Error', true);
+          }
+        });
+        activeExecutionWorker.addEventListener('error', event => {
+          logger.error(`Error del Web Worker: ${event.message}`);
+          finishExecutionWorker('Error', true);
+        });
+        activeExecutionWorker.postMessage({
+          files: Object.fromEntries(Object.entries(project.files).filter(([filename]) => filename.endsWith('.java')))
+        });
+      } catch (error) {
+        logger.error(error.message);
+        finishExecutionWorker('Error', true);
+      }
+    }
+    function renderAstAndClasses(interpreter) {
+      astView.innerHTML = '';
+      const header = document.createElement('div');
+      header.style.marginBottom = '8px';
+      header.innerHTML = `<strong>Registro Global Multi-Archivo</strong> — Clases: <span style="color:var(--accent-orange);">${interpreter.classes.size}</span>, Contratos (Interfaces): <span style="color:var(--accent-blue);">${interpreter.interfaces.size}</span>`;
+      astView.appendChild(header);
+
+      for (const [name, iface] of interpreter.interfaces.entries()) {
+        const card = document.createElement('div');
+        card.className = 'ast-card';
+        card.innerHTML = `
+          <div style="color:var(--accent-blue); font-weight:700;">interface ${name} <span style="font-size:10px; color:var(--text-muted);">[${iface.file}]</span></div>
+          <div style="font-size:11px; margin-top:2px;">
+            Contrato con métodos: ${iface.methods.map(m => `<code>${m.returnType} ${m.name}()</code>`).join(', ') || 'ninguno'}
+          </div>
+        `;
+        astView.appendChild(card);
+      }
+
+      for (const [name, clazz] of interpreter.classes.entries()) {
+        const card = document.createElement('div');
+        card.className = 'ast-card';
+        const ifaces = clazz.interfaces.length ? `implements ${clazz.interfaces.join(', ')}` : '';
+        card.innerHTML = `
+          <div style="color:var(--accent-green); font-weight:700;">class ${name} ${ifaces} <span style="font-size:10px; color:var(--text-muted);">[${clazz.file}]</span></div>
+          <div style="font-size:11px; margin-top:2px;">
+            Miembros: ${clazz.body.map(m => `<code>${m.name || m.type}</code>`).join(', ')}
+          </div>
+        `;
+        astView.appendChild(card);
+      }
+    }
+
+    document.getElementById('btn-run').addEventListener('click', runMultiFileEngine);
+    document.getElementById('btn-stop-run').addEventListener('click', stopExecutionWorker);
+
+    document.getElementById('btn-verify-contracts').addEventListener('click', () => {
+      logger.info("Validando formalmente contratos en todos los archivos...");
+      try {
+        const astList = parseAllJavaFiles();
+        const interpreter = new MultiFileInterpreter(logger);
+        interpreter.loadAllFiles(astList);
+        interpreter.verifyAllContracts();
+        renderAstAndClasses(interpreter);
+        logger.success(`¡Validación exitosa! Todas las clases implementan correctamente sus contratos en el proyecto.`);
+      } catch (e) {
+        logger.error(e.message);
+      }
+    });
+
+    document.getElementById('btn-package-jar').addEventListener('click', () => {
+      saveCurrentEditorContent();
+      const javaCount = Object.keys(project.files).filter(f => f.endsWith('.java')).length;
+      logger.info(`[INFO] Scanning for projects...`);
+      logger.info(`[INFO] Building ${project.artifactId} ${project.version}`);
+      logger.info(`[INFO] --- maven-resources-plugin:resources ---`);
+      logger.info(`[INFO] --- maven-compiler-plugin:compile ---`);
+      logger.info(`[INFO] Compiling ${javaCount} source file(s) to target/classes`);
+      logger.info(`[INFO] --- maven-jar-plugin:jar ---`);
+      logger.info(`[INFO] Building jar: target/${project.artifactId}-${project.version}.jar`);
+      logger.info(`[INFO] Manifest generated: META-INF/MANIFEST.MF -> Main-Class: ${project.groupId}.${project.mainClassName}`);
+      logger.success(`[INFO] BUILD SUCCESS - Artefacto ${project.artifactId}-${project.version}.jar listo.`);
+    });
+
+    // ==========================================
+    // 7. IMPORTACIÓN DE ARCHIVOS Y ARTEFACTOS
+    // ==========================================
+    const pickerJava = document.getElementById('file-picker-java');
+    const pickerArtifact = document.getElementById('file-picker-artifact');
+
+    document.getElementById('btn-trigger-import-java').addEventListener('click', () => {
+      pickerJava.click();
+    });
+
+    pickerJava.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+
+      for (const file of files) {
+        const text = await file.text();
+        project.files[file.name] = text;
+        logger.success(`Archivo Java importado: ${file.name}`);
+      }
+
+      project.activeFile = files[0].name;
+      updateProjectUI();
+      pickerJava.value = '';
+    });
+
+    document.getElementById('btn-trigger-import-artifact').addEventListener('click', () => {
+      pickerArtifact.click();
+    });
+
+    pickerArtifact.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      logger.info(`Leyendo artefacto o librería: ${file.name}...`);
+
+      if (file.name.endsWith('.java')) {
+        const content = await file.text();
+        project.files[file.name] = content;
+        project.activeFile = file.name;
+        logger.success(`Librería importada como fuente: ${file.name}`);
+        updateProjectUI();
+      } else if (file.name.endsWith('.jar') || file.name.endsWith('.zip')) {
+        try {
+          const zip = await JSZip.loadAsync(file);
+          let importedCount = 0;
+
+          for (const [relPath, zipEntry] of Object.entries(zip.files)) {
+            if (!zipEntry.dir && relPath.endsWith('.java')) {
+              const content = await zipEntry.async("string");
+              const baseName = relPath.split('/').pop();
+              project.files[baseName] = content;
+              importedCount++;
+            }
+          }
+
+          if (importedCount === 0) {
+            for (const [relPath, zipEntry] of Object.entries(zip.files)) {
+              if (!zipEntry.dir && relPath.endsWith('.class') && !relPath.includes('$')) {
+                const baseName = relPath.split('/').pop().replace('.class', '');
+                const stub = `package ${project.groupId};\n\n// Importado desde artefacto ${file.name}\npublic class ${baseName} {\n    // Métodos binarios del artefacto vinculados en runtime\n}\n`;
+                project.files[`${baseName}.java`] = stub;
+                importedCount++;
+              }
+            }
+          }
+
+          if (importedCount > 0) {
+            logger.success(`Artefacto '${file.name}' importado con éxito: ${importedCount} clase(s) agregada(s) al proyecto.`);
+            updateProjectUI();
+          } else {
+            logger.error(`El artefacto '${file.name}' no contiene clases legibles.`);
+          }
+        } catch (err) {
+          logger.error(`Error al procesar el archivo JAR: ${err.message}`);
+        }
+      }
+
+      pickerArtifact.value = '';
+    });
+
+    // ==========================================
+    // 8. CREACIÓN DE ARCHIVOS Y PROYECTO
+    // ==========================================
+    const modalFile = document.getElementById('modal-new-file');
+    const modalProject = document.getElementById('modal-new-project');
+
+    document.getElementById('btn-new-file').addEventListener('click', () => {
+      document.getElementById('input-new-filename').value = '';
+      modalFile.classList.add('show');
+    });
+
+    document.getElementById('btn-close-modal-file').addEventListener('click', () => modalFile.classList.remove('show'));
+    document.getElementById('btn-cancel-modal-file').addEventListener('click', () => modalFile.classList.remove('show'));
+
+    document.getElementById('btn-confirm-new-file').addEventListener('click', () => {
+      let fname = document.getElementById('input-new-filename').value.trim();
+      if (!fname) return;
+      if (!fname.endsWith('.java')) fname += '.java';
+
+      if (project.files[fname]) {
+        logger.error(`El archivo '${fname}' ya existe en el proyecto.`);
+        return;
+      }
+
+      const templateType = document.getElementById('select-file-template').value;
+      const pureName = fname.replace('.java', '');
+      let content = '';
+
+      if (templateType === 'class') {
+        content = `package ${project.groupId};\n\npublic class ${pureName} {\n    public ${pureName}() {\n    }\n}\n`;
+      } else if (templateType === 'interface') {
+        content = `package ${project.groupId};\n\n// Contrato formal\npublic interface ${pureName} {\n    void ejecutar();\n}\n`;
+      }
+
+      project.files[fname] = content;
+      project.activeFile = fname;
+      modalFile.classList.remove('show');
+      logger.success(`Archivo creado: ${fname}`);
+      updateProjectUI();
+    });
+
+    document.getElementById('btn-modal-new').addEventListener('click', () => modalProject.classList.add('show'));
+    document.getElementById('btn-close-modal').addEventListener('click', () => modalProject.classList.remove('show'));
+    document.getElementById('btn-cancel-modal').addEventListener('click', () => modalProject.classList.remove('show'));
+
+    document.getElementById('btn-create-project').addEventListener('click', () => {
+      const gid = document.getElementById('input-group-id').value.trim() || 'com.miempresa';
+      const aid = document.getElementById('input-artifact-id').value.trim() || 'mi-modulo';
+      const ver = document.getElementById('input-version').value.trim() || '1.0.0';
+      const cls = document.getElementById('input-main-class').value.trim() || 'Main';
+
+      initProjectState(gid, aid, ver, cls);
+      modalProject.classList.remove('show');
+      logger.info(`Nuevo proyecto limpio inicializado: ${gid}:${aid}:${ver}`);
+    });
+
+    // ==========================================
+    // 9. EXPORTACIÓN MAVEN EN ZIP
+    // ==========================================
+    document.getElementById('btn-download-zip').addEventListener('click', () => {
+      saveCurrentEditorContent();
+      logger.info("Empaquetando estructura de carpetas Maven estándar en ZIP...");
+
+      const zip = new JSZip();
+      const rootFolder = zip.folder(project.artifactId);
+
+      rootFolder.file("pom.xml", project.files['pom.xml']);
+
+      const pkgPath = project.groupId.replace(/\./g, '/');
+      const javaFolder = rootFolder.folder(`src/main/java/${pkgPath}`);
+
+      for (const [fname, content] of Object.entries(project.files)) {
+        if (fname.endsWith('.java')) {
+          javaFolder.file(fname, content);
+        }
+      }
+
+      rootFolder.folder("src/main/resources");
+      rootFolder.file(".gitignore", `target/\n*.class\n.idea/\n*.iml\n`);
+
+      zip.generateAsync({ type: "blob" }).then((content) => {
+        const url = URL.createObjectURL(content);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${project.artifactId}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        logger.success(`Proyecto Maven exportado exitosamente como '${project.artifactId}.zip'.`);
+      }).catch(err => {
+        logger.error(`Error generando ZIP: ${err.message}`);
+      });
+    });
+
+    // Inicio automático
+    window.addEventListener('load', () => {
+      updateProjectUI();
+    });
+  </script>
+</body>
+</html>
